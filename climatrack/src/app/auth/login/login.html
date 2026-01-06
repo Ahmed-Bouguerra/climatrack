@@ -1,0 +1,25 @@
+<mat-card>
+  <mat-card-title>Connexion</mat-card-title>
+  <mat-card-content>
+    <form class="form">
+      <mat-form-field appearance="outline">
+        <mat-label>Email</mat-label>
+        <input matInput type="email" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Mot de passe</mat-label>
+        <input matInput type="password" />
+      </mat-form-field>
+
+      <button mat-raised-button color="primary" class="w100">
+        Se connecter
+      </button>
+
+      <p class="hint">
+        Vous n’avez pas de compte ?
+        <a routerLink="/inscription">Créer un compte</a>
+      </p>
+    </form>
+  </mat-card-content>
+</mat-card>
