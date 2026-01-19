@@ -1,0 +1,170 @@
+<div class="profile-container">
+  <h1>Profil Administrateur</h1>
+
+  <div *ngIf="loading" class="loading">
+    <p>Chargement...</p>
+  </div>
+
+  <div *ngIf="!loading && user" class="profile-card">
+    <!-- Informations du compte (lecture seule) -->
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Informations du Compte</mat-card-title>
+      </mat-card-header>
+
+      <mat-card-content>
+        <form [formGroup]="profileForm" class="profile-form">
+          <div class="form-row">
+            <mat-form-field appearance="fill" class="form-field">
+              <mat-label>Nom</mat-label>
+              <input matInput formControlName="nom" />
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="form-field">
+              <mat-label>Prénom</mat-label>
+              <input matInput formControlName="prenom" />
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="fill" class="form-field full-width">
+              <mat-label>Email</mat-label>
+              <input matInput formControlName="email" />
+              <mat-hint>Contactez l'administrateur système pour modifier l'email</mat-hint>
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="fill" class="form-field">
+              <mat-label>Téléphone</mat-label>
+              <input matInput formControlName="telephone" />
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="form-field">
+              <mat-label>Adresse</mat-label>
+              <input matInput formControlName="adresse" />
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="fill" class="form-field">
+              <mat-label>Rôle</mat-label>
+              <input matInput formControlName="role" />
+            </mat-form-field>
+          </div>
+        </form>
+        
+        <div class="note">
+          <mat-icon>info</mat-icon>
+          <span>Les informations personnelles ne peuvent pas être modifiées directement. Contactez l'administrateur système pour toute modification.</span>
+        </div>
+      </mat-card-content>
+    </mat-card>
+    <p></p>
+    <!-- Changement de mot de passe -->
+    <mat-card class="password-card">
+      <mat-card-header>
+        <mat-card-title>Sécurité du Compte</mat-card-title>
+        <div class="header-actions">
+          <button
+            mat-raised-button
+            *ngIf="!isEditingPassword"
+            color="primary"
+            (click)="togglePasswordEdit()"
+          >
+            <mat-icon>lock</mat-icon>
+            Changer le mot de passe
+          </button>
+          <div *ngIf="isEditingPassword" class="edit-actions">
+            <button
+              mat-raised-button
+              color="primary"
+              (click)="changePassword()"
+              [disabled]="passwordForm.invalid || isSaving"
+            >
+              <mat-icon>save</mat-icon>
+              {{ isSaving ? 'Enregistrement...' : 'Enregistrer' }}
+            </button>
+            <button
+              mat-raised-button
+              (click)="togglePasswordEdit()"
+              [disabled]="isSaving"
+            >
+              <mat-icon>close</mat-icon>
+              Annuler
+            </button>
+          </div>
+        </div>
+      </mat-card-header>
+
+      <mat-card-content *ngIf="isEditingPassword">
+        <form [formGroup]="passwordForm" class="password-form">
+          <div class="form-row">
+            <mat-form-field appearance="fill" class="form-field full-width">
+              <mat-label>Mot de passe actuel</mat-label>
+              <input
+                matInput
+                type="password"
+                formControlName="currentPassword"
+                placeholder="Entrez votre mot de passe actuel"
+              />
+              <mat-error *ngIf="passwordForm.get('currentPassword')?.invalid">
+                Ce champ est requis
+              </mat-error>
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="fill" class="form-field">
+              <mat-label>Nouveau mot de passe</mat-label>
+              <input
+                matInput
+                type="password"
+                formControlName="newPassword"
+                placeholder="Minimum 6 caractères"
+              />
+              <mat-error *ngIf="passwordForm.get('newPassword')?.invalid">
+                Minimum 6 caractères requis
+              </mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="form-field">
+              <mat-label>Confirmer le mot de passe</mat-label>
+              <input
+                matInput
+                type="password"
+                formControlName="confirmPassword"
+                placeholder="Confirmez le nouveau mot de passe"
+              />
+              <mat-error *ngIf="passwordForm.get('confirmPassword')?.invalid">
+                Ce champ est requis
+              </mat-error>
+            </mat-form-field>
+          </div>
+
+          <div class="form-row" *ngIf="passwordForm.errors?.['mismatch'] && passwordForm.get('confirmPassword')?.touched">
+            <div class="error-message">
+              <mat-icon>error</mat-icon>
+              Les mots de passe ne correspondent pas
+            </div>
+          </div>
+
+          <div class="password-requirements">
+            <p>Exigences de sécurité :</p>
+            <ul>
+              <li>Minimum 6 caractères</li>
+              <li>Les mots de passe doivent correspondre</li>
+            </ul>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <div *ngIf="!loading && !user" class="error">
+    <p>Erreur lors du chargement du profil</p>
+    <button mat-raised-button color="primary" (click)="loadProfile()">
+      Réessayer
+    </button>
+  </div>
+</div>

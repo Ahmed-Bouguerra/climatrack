@@ -1,52 +1,51 @@
 <mat-card>
   <mat-card-title>Inscription</mat-card-title>
   <mat-card-content>
-    <form class="form">
+    <form (ngSubmit)="register()" class="form">
       <div class="grid2">
         <mat-form-field appearance="outline">
           <mat-label>Nom</mat-label>
-          <input matInput />
+          <input matInput [(ngModel)]="nom" name="nom" />
         </mat-form-field>
 
         <mat-form-field appearance="outline">
           <mat-label>Prénom</mat-label>
-          <input matInput />
+          <input matInput [(ngModel)]="prenom" name="prenom" />
         </mat-form-field>
       </div>
 
       <mat-form-field appearance="outline">
         <mat-label>Téléphone</mat-label>
-        <input matInput />
+        <input matInput [(ngModel)]="telephone" name="telephone" />
       </mat-form-field>
 
       <mat-form-field appearance="outline">
         <mat-label>Adresse</mat-label>
-        <input matInput />
+        <input matInput [(ngModel)]="adresse" name="adresse" />
       </mat-form-field>
 
       <mat-form-field appearance="outline">
         <mat-label>Email</mat-label>
-        <input matInput type="email" />
+        <input matInput type="email" [(ngModel)]="email" name="email" />
       </mat-form-field>
 
       <mat-form-field appearance="outline">
         <mat-label>Mot de passe</mat-label>
-        <input matInput type="password" />
+        <input matInput type="password" [(ngModel)]="password" name="password" />
       </mat-form-field>
 
       <mat-form-field appearance="outline">
         <mat-label>Nom de société (optionnel)</mat-label>
-        <input matInput />
+        <input matInput [(ngModel)]="societe" name="societe" />
       </mat-form-field>
 
-      <button mat-raised-button color="primary" class="w100">
+      <button mat-raised-button color="primary" class="w100" type="submit">
         Créer mon compte
       </button>
-
+    </form>
       <p class="hint">
         Déjà inscrit ?
         <a routerLink="/connexion">Se connecter</a>
       </p>
-    </form>
   </mat-card-content>
 </mat-card>

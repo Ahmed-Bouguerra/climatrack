@@ -1,2 +1,59 @@
-<h2>Agriculteurs</h2>
-<p>Tableau des agriculteurs (à implémenter)</p>
+<div class="container">
+  <h2>Liste des Agriculteurs</h2>
+  
+  <table mat-table [dataSource]="farmers" class="farmers-table">
+    
+    <!-- Colonne Nom -->
+    <ng-container matColumnDef="nom">
+      <th mat-header-cell *matHeaderCellDef>Nom</th>
+      <td mat-cell *matCellDef="let element">{{ element.nom }}</td>
+    </ng-container>
+
+    <!-- Colonne Prénom -->
+    <ng-container matColumnDef="prenom">
+      <th mat-header-cell *matHeaderCellDef>Prénom</th>
+      <td mat-cell *matCellDef="let element">{{ element.prenom }}</td>
+    </ng-container>
+
+    <!-- Colonne Email -->
+    <ng-container matColumnDef="email">
+      <th mat-header-cell *matHeaderCellDef>Email</th>
+      <td mat-cell *matCellDef="let element">{{ element.email }}</td>
+    </ng-container>
+
+    <!-- Colonne Téléphone -->
+    <ng-container matColumnDef="telephone">
+      <th mat-header-cell *matHeaderCellDef>Téléphone</th>
+      <td mat-cell *matCellDef="let element">{{ element.telephone }}</td>
+    </ng-container>
+
+    <!-- Colonne Adresse -->
+    <ng-container matColumnDef="adresse">
+      <th mat-header-cell *matHeaderCellDef>Adresse</th>
+      <td mat-cell *matCellDef="let element">{{ element.adresse }}</td>
+    </ng-container>
+
+    <!-- Colonne Actions -->
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef>Actions</th>
+      <td mat-cell *matCellDef="let element">
+        <button mat-icon-button [routerLink]="['/admin/agriculteurs', element.id]" title="Voir détails">
+          <mat-icon>visibility</mat-icon>
+        </button>
+        <button mat-icon-button routerLink="/admin/agriculteurs/{{ element.id }}/parcelles" title="Voir parcelles">
+          <mat-icon>landscape</mat-icon>
+        </button>
+        <button mat-icon-button color="warn" (click)="deleteFarmer(element.id)" title="Supprimer">
+          <mat-icon>delete</mat-icon>
+        </button>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+  </table>
+
+  <div *ngIf="farmers.length === 0" class="no-data">
+    Aucun agriculteur trouvé
+  </div>
+</div>

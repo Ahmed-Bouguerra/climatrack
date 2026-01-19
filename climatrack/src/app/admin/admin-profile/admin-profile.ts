@@ -6,6 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatDividerModule } from '@angular/material/divider';
 import { ApiService } from '../../core/services/api.service';
 
 interface UserProfile {
@@ -19,7 +20,7 @@ interface UserProfile {
 }
 
 @Component({
-  selector: 'app-profile',
+  selector: 'app-AdminProfile',
   standalone: true,
   imports: [
     CommonModule,
@@ -30,17 +31,19 @@ interface UserProfile {
     MatInputModule,
     MatButtonModule,
     MatIconModule,
+    MatDividerModule,
   ],
-  templateUrl: './profile.html',
-  styleUrl: './profile.scss',
+  templateUrl: './admin-profile.html',
+  styleUrl: './admin-profile.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class Profile implements OnInit {
+export class AdminProfile implements OnInit {
   user: UserProfile | null = null;
   loading = true;
-  isEditing = false;
+  isEditingPassword = false;
   isSaving = false;
   profileForm: FormGroup;
+  passwordForm: FormGroup;
 
   constructor(
     private api: ApiService,
@@ -50,36 +53,40 @@ export class Profile implements OnInit {
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.profileForm = this.fb.group({
-      nom: ['', Validators.required],
-      prenom: ['', Validators.required],
-      email: [''],
-      telephone: [''],
-      adresse: [''],
+      nom: [{value: '', disabled: true}],
+      prenom: [{value: '', disabled: true}],
+      email: [{value: '', disabled: true}],
+      telephone: [{value: '', disabled: true}],
+      adresse: [{value: '', disabled: true}],
+      role: [{value: '', disabled: true}],
     });
+
+    this.passwordForm = this.fb.group({
+      currentPassword: ['', Validators.required],
+      newPassword: ['', [Validators.required, Validators.minLength(6)]],
+      confirmPassword: ['', Validators.required]
+    }, { validator: this.passwordMatchValidator });
   }
 
   ngOnInit(): void {
     this.loadProfile();
   }
 
+  passwordMatchValidator(form: FormGroup) {
+    return form.get('newPassword')?.value === form.get('confirmPassword')?.value
+      ? null : { mismatch: true };
+  }
+
   loadProfile(): void {
-    // Only access localStorage in browser environment
+    // Vérifier si on est dans le navigateur
     if (!isPlatformBrowser(this.platformId)) {
       this.loading = false;
       this.cdr.markForCheck();
       return;
     }
 
-    const user_id = localStorage.getItem('user_id');
-
-    if (!user_id) {
-      this.loading = false;
-      this.cdr.markForCheck();
-      alert('Utilisateur non connecté');
-      return;
-    }
-
-    this.api.get<UserProfile>(`/index.php?action=profile&user_id=${user_id}`).subscribe({
+    // Récupérer le profil avec ID=1 (admin)
+    this.api.get<UserProfile>(`/index.php?action=profile&user_id=1`).subscribe({
       next: (data) => {
         this.ngZone.run(() => {
           this.user = data;
@@ -89,65 +96,61 @@ export class Profile implements OnInit {
             email: data.email,
             telephone: data.telephone,
             adresse: data.adresse,
+            role: data.role,
           });
           this.loading = false;
           this.cdr.markForCheck();
         });
       },
       error: (err) => {
-        console.error('Erreur chargement profil:', err);
+        console.error('Erreur chargement profil admin:', err);
         this.loading = false;
         this.cdr.markForCheck();
-        alert('Erreur lors du chargement du profil');
+        alert('Erreur lors du chargement du profil admin');
       },
     });
   }
 
-  toggleEdit(): void {
-    this.isEditing = !this.isEditing;
-    if (!this.isEditing) {
-      // Réinitialiser le formulaire si on annule l'édition
-      if (this.user) {
-        this.profileForm.patchValue({
-          nom: this.user.nom,
-          prenom: this.user.prenom,
-          email: this.user.email,
-          telephone: this.user.telephone,
-          adresse: this.user.adresse,
-        });
-      }
+  togglePasswordEdit(): void {
+    this.isEditingPassword = !this.isEditingPassword;
+    if (!this.isEditingPassword) {
+      this.passwordForm.reset();
     }
     this.cdr.markForCheck();
   }
 
-  saveProfile(): void {
-    if (this.profileForm.invalid || !this.user) {
+  changePassword(): void {
+    if (this.passwordForm.invalid || !this.user) {
       return;
     }
 
     this.isSaving = true;
     this.cdr.markForCheck();
 
+    const formValue = this.passwordForm.value;
     const updatedData = {
-      action: 'profile',
-      id: this.user.id,
-      ...this.profileForm.value,
+      action: 'changePassword',
+      id: 1, // Toujours ID=1 pour admin
+      currentPassword: formValue.currentPassword,
+      newPassword: formValue.newPassword,
     };
 
     this.api.put('/index.php', updatedData).subscribe({
-      next: () => {
+      next: (response: any) => {
         this.ngZone.run(() => {
           this.isSaving = false;
-          this.isEditing = false;
-          this.loadProfile();
-          alert('Profil mis à jour avec succès');
+          this.isEditingPassword = false;
+          this.passwordForm.reset();
+          
+          alert('Mot de passe modifié avec succès');
+          this.cdr.markForCheck();
         });
       },
       error: (err) => {
-        console.error('Erreur mise à jour:', err);
+        console.error('Erreur modification mot de passe:', err);
         this.isSaving = false;
         this.cdr.markForCheck();
-        alert('Erreur lors de la mise à jour du profil');
+        alert('Erreur lors de la modification du mot de passe');
       },
     });
   }

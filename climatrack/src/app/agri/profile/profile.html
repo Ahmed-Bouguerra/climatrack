@@ -1,1 +1,103 @@
-<p>profile works!</p>
+<div class="profile-container">
+  <h1>Mon Profil</h1>
+
+  <div *ngIf="loading" class="loading">
+    <p>Chargement...</p>
+  </div>
+
+  <div *ngIf="!loading && user" class="profile-card">
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Informations Personnelles</mat-card-title>
+        <div class="header-actions">
+          <button
+            mat-raised-button
+            *ngIf="!isEditing"
+            color="primary"
+            (click)="toggleEdit()"
+          >
+            <mat-icon>edit</mat-icon>
+            Modifier
+          </button>
+          <div *ngIf="isEditing" class="edit-actions">
+            <button
+              mat-raised-button
+              color="primary"
+              (click)="saveProfile()"
+              [disabled]="profileForm.invalid || isSaving"
+            >
+              <mat-icon>save</mat-icon>
+              {{ isSaving ? 'Enregistrement...' : 'Enregistrer' }}
+            </button>
+            <button
+              mat-raised-button
+              (click)="toggleEdit()"
+              [disabled]="isSaving"
+            >
+              <mat-icon>close</mat-icon>
+              Annuler
+            </button>
+          </div>
+        </div>
+      </mat-card-header>
+
+      <mat-card-content>
+        <form [formGroup]="profileForm" class="profile-form">
+          <div class="form-row">
+            <mat-form-field appearance="fill" class="form-field">
+              <mat-label>Nom</mat-label>
+              <input
+                matInput
+                formControlName="nom"
+                [disabled]="!isEditing"
+              />
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="form-field">
+              <mat-label>Prénom</mat-label>
+              <input
+                matInput
+                formControlName="prenom"
+                [disabled]="!isEditing"
+              />
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="fill" class="form-field full-width">
+              <mat-label>Email</mat-label>
+              <input
+                matInput
+                formControlName="email"
+              />
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="fill" class="form-field">
+              <mat-label>Téléphone</mat-label>
+              <input
+                matInput
+                formControlName="telephone"
+                [disabled]="!isEditing"
+              />
+            </mat-form-field>
+
+            <mat-form-field appearance="fill" class="form-field">
+              <mat-label>Adresse</mat-label>
+              <input
+                matInput
+                formControlName="adresse"
+                [disabled]="!isEditing"
+              />
+            </mat-form-field>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <div *ngIf="!loading && !user" class="error">
+    <p>Erreur lors du chargement du profil</p>
+  </div>
+</div>

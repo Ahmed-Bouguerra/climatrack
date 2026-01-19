@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { RouterOutlet, RouterLink } from '@angular/router';
+import { RouterOutlet, RouterLink, Router } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
 
@@ -10,4 +10,12 @@ import { MatButtonModule } from '@angular/material/button';
   templateUrl: './agri-layout.html',
   styleUrls: ['./agri-layout.scss'],
 })
-export class AgriLayoutComponent {}
+export class AgriLayoutComponent {
+  constructor(private router: Router) {}
+
+  deconnexion() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    this.router.navigate(['/connexion']);
+  }
+}

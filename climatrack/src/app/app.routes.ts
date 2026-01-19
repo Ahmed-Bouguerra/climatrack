@@ -10,13 +10,14 @@ import { RegisterComponent } from './auth/register/register';
 import { FarmersList } from './admin/farmers-list/farmers-list';
 import { FarmerDetail } from './admin/farmer-detail/farmer-detail';
 import { FarmerParcels } from './admin/farmer-parcels/farmer-parcels';
+import { AdminProfile } from './admin/admin-profile/admin-profile';
 
 import { Home } from './agri/home/home';
 import { Profile } from './agri/profile/profile';
 import { ParcelDashboard } from './agri/parcel-dashboard/parcel-dashboard';
 
 export const routes: Routes = [
-  // Public
+ 
   {
     path: '',
     component: PublicLayoutComponent,
@@ -35,6 +36,7 @@ export const routes: Routes = [
       { path: 'agriculteurs', component: FarmersList },
       { path: 'agriculteurs/:id', component: FarmerDetail },
       { path: 'agriculteurs/:id/parcelles', component: FarmerParcels },
+      { path: 'admin-profile', component: AdminProfile },
     ],
   },
 
