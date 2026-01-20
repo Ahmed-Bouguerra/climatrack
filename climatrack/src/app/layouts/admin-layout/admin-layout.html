@@ -1,11 +1,16 @@
 <mat-toolbar>
   <span>ClimaTrack — Administration</span>
   <span class="spacer"></span>
+  <button mat-button (click)="return()">
+    <mat-icon>home</mat-icon>
+    Accueil
+  </button>
 
   <button mat-raised-button color="primary" (click)="addAgriculteur()">
     <mat-icon>add</mat-icon>
     Ajouter Agriculteur
   </button>
+  
   <a mat-button routerLink="admin-profile">Profil</a>
   <button mat-stroked-button color="warn" (click)="deconnexion()">Déconnexion</button>
 </mat-toolbar>

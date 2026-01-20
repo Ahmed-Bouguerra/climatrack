@@ -13,6 +13,9 @@ import { MatIconModule } from '@angular/material/icon';
 })
 export class AdminLayoutComponent {
   constructor(private router: Router) {}
+  return() {
+    this.router.navigate(['/admin/farmers']);
+  }
 
   addAgriculteur() {
     this.router.navigate(['/inscription']);
