@@ -1,0 +1,46 @@
+<!-- message tant que l'API n'est pas chargée -->
+<div *ngIf="!loaded" style="height:500px; display:flex; align-items:center; justify-content:center;">
+  Chargement de la carte Google Maps…
+</div>
+
+<div *ngIf="loaded" style="height:500px;">
+  <google-map
+    height="100%"
+    width="100%"
+    [center]="center"
+    [zoom]="zoom"
+    (mapClick)="addPoint($event)"
+  >
+    <!-- polygon preview -->
+    <map-polygon *ngIf="path.length > 1" [paths]="path" [options]="{fillColor: '#FF0000', strokeColor:'#FF0000', strokeOpacity:0.7, fillOpacity:0.2}"></map-polygon>
+
+    <!-- markers for each vertex with index label -->
+    <map-marker
+      *ngFor="let p of path; let i = index"
+      [position]="p"
+      [label]="(i + 1).toString()"
+    ></map-marker>
+  </google-map>
+</div>
+
+<div style="margin-top:12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+  <mat-form-field appearance="outline" style="flex:1; min-width:220px;">
+    <mat-label>Nom de la parcelle</mat-label>
+    <input matInput [(ngModel)]="name" name="parcname" placeholder="Ex: Parcelle X">
+  </mat-form-field>
+
+  <div style="display:flex; gap:8px;">
+    <button mat-stroked-button color="primary" (click)="save()" [disabled]="path.length < 3">Sauvegarder</button>
+    <button mat-stroked-button color="warn" (click)="cancel()">Annuler</button>
+  </div>
+</div>
+
+<div *ngIf="path.length > 0" style="margin-top:12px;">
+  <strong>Points (cliquez sur la croix pour supprimer):</strong>
+  <ul>
+    <li *ngFor="let p of path; let i = index">
+      #{{ i + 1 }} — {{ p.lat.toFixed(6) }}, {{ p.lng.toFixed(6) }}
+      <button style="margin-left:8px;" mat-stroked-button color="warn" (click)="removePoint(i)">✕</button>
+    </li>
+  </ul>
+</div>

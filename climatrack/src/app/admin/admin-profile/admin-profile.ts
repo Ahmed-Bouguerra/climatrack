@@ -1,12 +1,29 @@
-import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, NgZone, PLATFORM_ID, Inject } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  NgZone,
+  PLATFORM_ID,
+  inject
+} from '@angular/core';
+
 import { CommonModule, isPlatformBrowser } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import {
+  FormsModule,
+  ReactiveFormsModule,
+  FormBuilder,
+  FormGroup,
+  Validators
+} from '@angular/forms';
+
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDividerModule } from '@angular/material/divider';
+
 import { ApiService } from '../../core/services/api.service';
 
 interface UserProfile {
@@ -20,7 +37,7 @@ interface UserProfile {
 }
 
 @Component({
-  selector: 'app-AdminProfile',
+  selector: 'app-admin-profile',
   standalone: true,
   imports: [
     CommonModule,
@@ -31,17 +48,22 @@ interface UserProfile {
     MatInputModule,
     MatButtonModule,
     MatIconModule,
-    MatDividerModule,
+    MatDividerModule
   ],
   templateUrl: './admin-profile.html',
-  styleUrl: './admin-profile.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+  styleUrls: ['./admin-profile.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AdminProfile implements OnInit {
+
+  // ✅ Angular modern DI
+  private platformId = inject(PLATFORM_ID);
+
   user: UserProfile | null = null;
   loading = true;
   isEditingPassword = false;
   isSaving = false;
+
   profileForm: FormGroup;
   passwordForm: FormGroup;
 
@@ -49,23 +71,25 @@ export class AdminProfile implements OnInit {
     private api: ApiService,
     private cdr: ChangeDetectorRef,
     private ngZone: NgZone,
-    private fb: FormBuilder,
-    @Inject(PLATFORM_ID) private platformId: Object
+    private fb: FormBuilder
   ) {
     this.profileForm = this.fb.group({
-      nom: [{value: '', disabled: true}],
-      prenom: [{value: '', disabled: true}],
-      email: [{value: '', disabled: true}],
-      telephone: [{value: '', disabled: true}],
-      adresse: [{value: '', disabled: true}],
-      role: [{value: '', disabled: true}],
+      nom: [{ value: '', disabled: true }],
+      prenom: [{ value: '', disabled: true }],
+      email: [{ value: '', disabled: true }],
+      telephone: [{ value: '', disabled: true }],
+      adresse: [{ value: '', disabled: true }],
+      role: [{ value: '', disabled: true }]
     });
 
-    this.passwordForm = this.fb.group({
-      currentPassword: ['', Validators.required],
-      newPassword: ['', [Validators.required, Validators.minLength(6)]],
-      confirmPassword: ['', Validators.required]
-    }, { validator: this.passwordMatchValidator });
+    this.passwordForm = this.fb.group(
+      {
+        currentPassword: ['', Validators.required],
+        newPassword: ['', [Validators.required, Validators.minLength(6)]],
+        confirmPassword: ['', Validators.required]
+      },
+      { validators: this.passwordMatchValidator }
+    );
   }
 
   ngOnInit(): void {
@@ -74,19 +98,19 @@ export class AdminProfile implements OnInit {
 
   passwordMatchValidator(form: FormGroup) {
     return form.get('newPassword')?.value === form.get('confirmPassword')?.value
-      ? null : { mismatch: true };
+      ? null
+      : { mismatch: true };
   }
 
   loadProfile(): void {
-    // Vérifier si on est dans le navigateur
     if (!isPlatformBrowser(this.platformId)) {
       this.loading = false;
       this.cdr.markForCheck();
       return;
     }
 
-    // Récupérer le profil avec ID=1 (admin)
-    this.api.get<UserProfile>(`/index.php?action=profile&user_id=1`).subscribe({
+    // admin ID = 1
+    this.api.get<UserProfile>('/index.php?action=profile&user_id=1').subscribe({
       next: (data) => {
         this.ngZone.run(() => {
           this.user = data;
@@ -96,7 +120,7 @@ export class AdminProfile implements OnInit {
             email: data.email,
             telephone: data.telephone,
             adresse: data.adresse,
-            role: data.role,
+            role: data.role
           });
           this.loading = false;
           this.cdr.markForCheck();
@@ -107,7 +131,7 @@ export class AdminProfile implements OnInit {
         this.loading = false;
         this.cdr.markForCheck();
         alert('Erreur lors du chargement du profil admin');
-      },
+      }
     });
   }
 
@@ -128,20 +152,20 @@ export class AdminProfile implements OnInit {
     this.cdr.markForCheck();
 
     const formValue = this.passwordForm.value;
-    const updatedData = {
+
+    const payload = {
       action: 'changePassword',
-      id: 1, // Toujours ID=1 pour admin
+      id: 1, // admin
       currentPassword: formValue.currentPassword,
-      newPassword: formValue.newPassword,
+      newPassword: formValue.newPassword
     };
 
-    this.api.put('/index.php', updatedData).subscribe({
-      next: (response: any) => {
+    this.api.post('/index.php', payload).subscribe({
+      next: () => {
         this.ngZone.run(() => {
           this.isSaving = false;
           this.isEditingPassword = false;
           this.passwordForm.reset();
-          
           alert('Mot de passe modifié avec succès');
           this.cdr.markForCheck();
         });
@@ -151,7 +175,7 @@ export class AdminProfile implements OnInit {
         this.isSaving = false;
         this.cdr.markForCheck();
         alert('Erreur lors de la modification du mot de passe');
-      },
+      }
     });
   }
 }

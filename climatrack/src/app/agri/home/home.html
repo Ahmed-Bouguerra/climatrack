@@ -1,2 +1,46 @@
 <h2>Accueil</h2>
-<p>Liste des parcelles (à implémenter)</p>
+
+<div *ngIf="parcels.length > 0" style="margin-bottom:16px; height:360px;">
+  <google-map
+    height="100%"
+    width="100%"
+    [center]="center"
+    [zoom]="zoom"
+    mapId="YOUR_MAP_ID_HERE"
+  >
+    <ng-container *ngFor="let p of parcels">
+      <!-- n'affiche le polygon que s'il y a au moins 2 points (ou 3 si vous préférez) -->
+      <map-polygon *ngIf="getPath(p).length > 1" [paths]="getPath(p)" [options]="{fillColor:'#00FF00', strokeColor:'#007700', strokeOpacity:0.6, fillOpacity:0.15}"></map-polygon>
+
+      <map-marker
+        [position]="{ lat: p.lat, lng: p.lng }"
+        [label]="p.name || ''"
+      ></map-marker>
+    </ng-container>
+  </google-map>
+</div>
+
+<h3>Liste des parcelles</h3>
+<table border="1" width="100%" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Nom</th>
+      <th>Latitude</th>
+      <th>Longitude</th>
+      <th>Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let p of parcels">
+      <td>{{ p.id }}</td>
+      <td>{{ p.name }}</td>
+      <td>{{ p.lat }}</td>
+      <td>{{ p.lng }}</td>
+      <td>{{ p.polygon ? 'Polygon' : 'Point' }}</td>
+    </tr>
+    <tr *ngIf="parcels.length === 0">
+      <td colspan="5">Aucune parcelle disponible.</td>
+    </tr>
+  </tbody>
+</table>
