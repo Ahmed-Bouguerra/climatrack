@@ -30,7 +30,7 @@
     "@angular/compiler": "^21.0.0",
     "@angular/core": "^21.0.0",
     "@angular/forms": "^21.0.0",
-    "@angular/google-maps": "^21.0.5",
+    "@angular/google-maps": "^21.1.1",
     "@angular/material": "^21.0.5",
     "@angular/platform-browser": "^21.0.0",
     "@angular/platform-server": "^21.0.0",
