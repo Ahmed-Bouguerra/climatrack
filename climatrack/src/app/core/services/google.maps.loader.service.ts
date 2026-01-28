@@ -1,14 +1,18 @@
 import { Injectable } from '@angular/core';
 import { environment } from '../../../environments/environment';
 
-
-
 @Injectable({ providedIn: 'root' })
 export class GoogleMapsLoaderService {
   private loadingPromise: Promise<void> | null = null;
 
   load(): Promise<void> {
     if (this.loadingPromise) return this.loadingPromise;
+
+    // If no API key is configured, fail fast with a friendly error so components can display a message
+    const apiKey = (environment.googleMapsApiKey || '').trim();
+    if (!apiKey) {
+      return Promise.reject(new Error('Google Maps API key not configured. Set environment.googleMapsApiKey.'));
+    }
 
     // Already loaded
     if ((window as any).google && (window as any).google.maps) {
@@ -25,7 +29,7 @@ export class GoogleMapsLoaderService {
           // Newer versions expose importLibrary & setOptions
           if (typeof mod.importLibrary === 'function' && typeof mod.setOptions === 'function') {
             mod.setOptions({
-              key: environment.googleMapsApiKey,
+              key: apiKey,
               version: 'weekly',
               libraries: ['places'],
             } as any);
@@ -37,13 +41,12 @@ export class GoogleMapsLoaderService {
           if (typeof mod.Loader === 'function') {
             const LoaderClass = mod.Loader;
             const loaderInstance = new LoaderClass({
-              apiKey: environment.googleMapsApiKey,
+              apiKey: apiKey,
               version: 'weekly',
               libraries: ['places'],
             } as any);
 
             if (typeof loaderInstance.load === 'function') {
-              // call load() if present
               await loaderInstance.load();
               return;
             }
@@ -81,7 +84,7 @@ export class GoogleMapsLoaderService {
           const script = document.createElement('script');
           script.id = id;
           script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
-            environment.googleMapsApiKey || ''
+            apiKey
           )}&libraries=places&v=weekly`;
           script.async = true;
           script.defer = true;

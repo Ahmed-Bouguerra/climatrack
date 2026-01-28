@@ -3,8 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ParcellesService, Parcelle } from '../../core/services/parcel.service';
 import { MatButtonModule } from '@angular/material/button';
 import { HttpClientModule } from '@angular/common/http';
-
-
+import { ActivatedRoute } from '@angular/router';
 
 @Component({
   selector: 'app-farmer-parcels',
@@ -50,12 +49,22 @@ import { HttpClientModule } from '@angular/common/http';
 export class FarmerParcels implements OnInit {
   parcels: Parcelle[] = [];
   loading = false;
-  userId: number | null = localStorage.getItem('user_id') ? Number(localStorage.getItem('user_id')) : null;
+  userId: number | null = null;
 
-  constructor(private svc: ParcellesService) {}
+  constructor(private svc: ParcellesService, private route: ActivatedRoute) {}
 
   ngOnInit(): void {
-    this.load();
+    // On écoute les params de route pour récupérer l'id de l'agriculteur (:id)
+    this.route.paramMap.subscribe((pm) => {
+      const idFromRoute = pm.get('id');
+      if (idFromRoute) {
+        this.userId = Number(idFromRoute);
+      } else {
+        // fallback vers localStorage si nécessaire
+        this.userId = localStorage.getItem('user_id') ? Number(localStorage.getItem('user_id')) : null;
+      }
+      this.load();
+    });
   }
 
   load() {

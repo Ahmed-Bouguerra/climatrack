@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 
 interface Farmer {
@@ -20,7 +20,7 @@ interface Farmer {
   standalone: true,
   imports: [CommonModule, MatTableModule, MatButtonModule, MatIconModule, RouterModule],
   templateUrl: './farmers-list.html',
-  styleUrl: './farmers-list.scss',
+  styleUrls: ['./farmers-list.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FarmersList implements OnInit {
@@ -30,7 +30,8 @@ export class FarmersList implements OnInit {
   constructor(
     private api: ApiService,
     private cdr: ChangeDetectorRef,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
@@ -41,7 +42,7 @@ export class FarmersList implements OnInit {
     this.api.get<Farmer[]>('/index.php?action=farmers').subscribe({
       next: (data) => {
         this.ngZone.run(() => {
-          this.farmers = data;
+          this.farmers = data || [];
           this.cdr.markForCheck();
         });
       },
@@ -66,5 +67,9 @@ export class FarmersList implements OnInit {
       });
     }
   }
+
+  goToParcelles(id: number): void {
+    // navigate to admin agriculteurs/:id/parcelles
+    this.router.navigate(['/admin/agriculteurs', id, 'parcelles']);
+  }
 }
-//}

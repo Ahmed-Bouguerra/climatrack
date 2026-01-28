@@ -391,5 +391,77 @@ if ($action === 'parcelles') {
         respond(404, ["status"=>"error","message"=>"Parcelle non trouvée"]);
     }
 }
+// ================== ADDITION : endpoints parcelles avancés (AJOUTS, NE MODIFIENT PAS L'EXISTANT) ==================
+if ($action === 'parcelles_full' && $method === 'GET') {
+    $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
+    $user_id = isset($_GET['user_id']) ? (int)$_GET['user_id'] : null;
+
+    if ($id) {
+        $stmt = stmt_prepare_or_respond($conn,
+            "SELECT parcelles.id, parcelles.user_id, parcelles.nom, parcelles.surface, parcelles.localisation, parcelles.created_at,
+                    users.nom AS nom_agriculteur, users.prenom AS prenom_agriculteur
+             FROM parcelles
+             JOIN users ON parcelles.user_id = users.id
+             WHERE parcelles.id = ? LIMIT 1"
+        );
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $p = $res->fetch_assoc();
+        if ($p) respond(200, $p);
+        respond(404, ["status" => "error", "message" => "Parcelle non trouvée"]);
+    }
+
+    if ($user_id) {
+        $stmt = stmt_prepare_or_respond($conn,
+            "SELECT parcelles.id, parcelles.user_id, parcelles.nom, parcelles.surface, parcelles.localisation, parcelles.created_at,
+                    users.nom AS nom_agriculteur, users.prenom AS prenom_agriculteur
+             FROM parcelles
+             JOIN users ON parcelles.user_id = users.id
+             WHERE parcelles.user_id = ?
+             ORDER BY parcelles.created_at DESC"
+        );
+        $stmt->bind_param("i", $user_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $list = [];
+        while ($row = $res->fetch_assoc()) $list[] = $row;
+        respond(200, $list);
+    }
+
+    // fallback: toutes les parcelles avec nom/prenom agriculteur
+    $res = $conn->query(
+        "SELECT parcelles.id, parcelles.user_id, parcelles.nom, parcelles.surface, parcelles.localisation, parcelles.created_at,
+                users.nom AS nom_agriculteur, users.prenom AS prenom_agriculteur
+         FROM parcelles
+         JOIN users ON parcelles.user_id = users.id
+         ORDER BY parcelles.created_at DESC"
+    );
+    if (!$res) {
+        respond(500, ["status" => "error", "message" => "DB query error", "sql_error" => $conn->error]);
+    }
+    $list = [];
+    while ($row = $res->fetch_assoc()) $list[] = $row;
+    respond(200, $list);
+}
+
+if ($action === 'parcelles_count' && $method === 'GET') {
+    // retourne la liste des agriculteurs avec le nombre total de parcelles (LEFT JOIN)
+    $res = $conn->query(
+        "SELECT users.id AS user_id, users.nom, users.prenom, COUNT(parcelles.id) AS total_parcelles
+         FROM users
+         LEFT JOIN parcelles ON users.id = parcelles.user_id
+         WHERE users.role = 'agriculteur'
+         GROUP BY users.id
+         ORDER BY users.nom, users.prenom"
+    );
+    if (!$res) {
+        respond(500, ["status" => "error", "message" => "DB query error", "sql_error" => $conn->error]);
+    }
+    $rows = [];
+    while ($r = $res->fetch_assoc()) $rows[] = $r;
+    respond(200, $rows);
+}
+
 // ================== DEFAULT ==================
 respond(400, ["status" => "error", "message" => "Invalid action"]);

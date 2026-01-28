@@ -7,7 +7,7 @@ import { AgriLayoutComponent } from './layouts/agri-layout/agri-layout';
 import { LoginComponent } from './auth/login/login';
 import { RegisterComponent } from './auth/register/register';
 
-import { FarmersList } from './admin/farmers-list/farmers-list';
+// FarmersList is standalone — import it dynamically to avoid TS2305/TS2339 issues
 import { FarmerDetail } from './admin/farmer-detail/farmer-detail';
 import { FarmerParcels } from './admin/farmer-parcels/farmer-parcels';
 import { AdminProfile } from './admin/admin-profile/admin-profile';
@@ -33,7 +33,10 @@ export const routes: Routes = [
     component: AdminLayoutComponent,
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'agriculteurs' },
-      { path: 'agriculteurs', component: FarmersList },
+
+      // dynamic load for standalone component
+      { path: 'agriculteurs', loadComponent: () => import('./admin/farmers-list/farmers-list').then((m: any) => m.FarmersList) },
+
       { path: 'agriculteurs/:id', component: FarmerDetail },
       { path: 'agriculteurs/:id/parcelles', component: FarmerParcels },
       { path: 'admin-profile', component: AdminProfile },

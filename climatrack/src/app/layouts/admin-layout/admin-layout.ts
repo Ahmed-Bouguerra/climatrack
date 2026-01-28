@@ -21,8 +21,9 @@ export class AdminLayoutComponent {
 
   constructor(private router: Router) {}
 
+  // Navigate to the admin farmers list (route: /admin/agriculteurs)
   goHome(): void {
-    this.router.navigate(['/admin/FarmersList']);
+    this.router.navigate(['/admin', 'agriculteurs']);
   }
 
   addAgriculteur(): void {

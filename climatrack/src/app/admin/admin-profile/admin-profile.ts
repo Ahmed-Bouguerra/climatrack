@@ -160,7 +160,8 @@ export class AdminProfile implements OnInit {
       newPassword: formValue.newPassword
     };
 
-    this.api.post('/index.php', payload).subscribe({
+    // === FIX === : utiliser PUT (le serveur attend PUT pour changePassword)
+    this.api.put('/index.php', payload).subscribe({
       next: () => {
         this.ngZone.run(() => {
           this.isSaving = false;
@@ -171,10 +172,16 @@ export class AdminProfile implements OnInit {
         });
       },
       error: (err) => {
+        // Afficher le message explicite renvoyé par l'API si présent
         console.error('Erreur modification mot de passe:', err);
         this.isSaving = false;
         this.cdr.markForCheck();
-        alert('Erreur lors de la modification du mot de passe');
+        const apiMsg =
+          err && err.error && err.error.message ? err.error.message : null;
+        alert(
+          'Erreur lors de la modification du mot de passe' +
+            (apiMsg ? ': ' + apiMsg : '')
+        );
       }
     });
   }
