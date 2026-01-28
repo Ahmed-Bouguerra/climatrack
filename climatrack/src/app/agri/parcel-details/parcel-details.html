@@ -1,0 +1,25 @@
+<div class="parcel-details">
+  <button mat-stroked-button color="primary" (click)="back()">Retour</button>
+
+  <h2 *ngIf="parcel">{{ parcel.nom || ('Parcelle ' + parcel.id) }}</h2>
+
+  <div *ngIf="loadingParcel">Chargement parcelle...</div>
+  <div *ngIf="error" style="color:crimson; margin-top:12px;">{{ error }}</div>
+
+  <div *ngIf="parcel && !loadingParcel" style="margin-top:12px;">
+    <p><strong>ID:</strong> {{ parcel.id }}</p>
+    <p><strong>Surface:</strong> {{ parcel.surface ?? '-' }}</p>
+    <p><strong>Localisation:</strong> {{ parcel.localisation || '-' }}</p>
+    <hr />
+    <div *ngIf="loadingWeather">Chargement météo...</div>
+
+    <div *ngIf="weather && !loadingWeather">
+      <h3>Météo actuelle — {{ weather.name }} {{ weather.sys?.country ? ('(' + weather.sys?.country + ')') : '' }}</h3>
+      <p><strong>Temp:</strong> {{ weather.main.temp }} °C (ressenti {{ weather.main.feels_like }} °C)</p>
+      <p><strong>Humidité:</strong> {{ weather.main.humidity }}%</p>
+      <p *ngIf="weather.wind"><strong>Vent:</strong> {{ weather.wind.speed }} m/s</p>
+      <p><strong>Conditions:</strong> {{ weather.weather[0]?.description }}</p>
+      <img *ngIf="weather.weather[0]?.icon" [src]="'https://openweathermap.org/img/wn/' + weather.weather[0].icon + '@2x.png'" alt="icon" />
+    </div>
+  </div>
+</div>

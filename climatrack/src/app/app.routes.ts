@@ -15,6 +15,7 @@ import { AdminProfile } from './admin/admin-profile/admin-profile';
 import { Home } from './agri/home/home';
 import { Profile } from './agri/profile/profile';
 import { ParcelDashboard } from './agri/parcel-dashboard/parcel-dashboard';
+import { ParcelDetails } from './agri/parcel-details/parcel-details';
 
 export const routes: Routes = [
  
@@ -50,6 +51,7 @@ export const routes: Routes = [
       { path: 'accueil', component: Home },
       { path: 'profil', component: Profile },
       { path: 'parcelles/:id', component: ParcelDashboard },
+      { path: 'parcelle/:id', component: ParcelDetails },
     ],
   },
 

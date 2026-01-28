@@ -10,17 +10,28 @@ export interface Parcelle {
   surface?: number | null;
   localisation?: string | null;
   created_at?: string;
+  // optional backend-provided fields
+  nom_agriculteur?: string | null;
+  prenom_agriculteur?: string | null;
+  polygon?: string | null;
+  lat?: number | string | null;
+  lng?: number | string | null;
 }
 
 @Injectable({ providedIn: 'root' })
 export class ParcellesService {
   private api = (environment.apiBaseUrl || '').replace(/\/$/, '') + '/index.php';
 
-  constructor(private http: HttpClient) {}
+  constructor(public http: HttpClient) {} // public so components/tests can reuse if needed
 
   getByUser(userId: number): Observable<Parcelle[]> {
     const params = new HttpParams().set('action', 'parcelles').set('user_id', String(userId));
     return this.http.get<Parcelle[]>(this.api, { params });
+  }
+
+  getById(id: number): Observable<Parcelle> {
+    const params = new HttpParams().set('action', 'parcelles').set('id', String(id));
+    return this.http.get<Parcelle>(this.api, { params });
   }
 
   delete(id: number) {

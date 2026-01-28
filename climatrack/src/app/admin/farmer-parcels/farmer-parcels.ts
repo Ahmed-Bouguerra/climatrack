@@ -3,84 +3,79 @@ import { CommonModule } from '@angular/common';
 import { ParcellesService, Parcelle } from '../../core/services/parcel.service';
 import { MatButtonModule } from '@angular/material/button';
 import { HttpClientModule } from '@angular/common/http';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 @Component({
   selector: 'app-farmer-parcels',
   standalone: true,
   imports: [CommonModule, HttpClientModule, MatButtonModule],
-  template: `
-    <h3>Mes parcelles</h3>
-
-    <div *ngIf="!userId">Utilisateur non connecté (user_id manquant)</div>
-
-    <div *ngIf="userId">
-      <button mat-stroked-button color="primary" (click)="load()" [disabled]="loading">Rafraîchir</button>
-
-      <table style="width:100%; margin-top:12px; border-collapse:collapse;">
-        <thead>
-          <tr>
-            <th style="text-align:left; padding:6px; border-bottom:1px solid #ddd;">ID</th>
-            <th style="text-align:left; padding:6px; border-bottom:1px solid #ddd;">Nom</th>
-            <th style="text-align:left; padding:6px; border-bottom:1px solid #ddd;">Surface</th>
-            <th style="text-align:left; padding:6px; border-bottom:1px solid #ddd;">Localisation</th>
-            <th style="text-align:left; padding:6px; border-bottom:1px solid #ddd;">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let p of parcels">
-            <td style="padding:6px; border-bottom:1px solid #f0f0f0;">{{p.id}}</td>
-            <td style="padding:6px; border-bottom:1px solid #f0f0f0;">{{p.nom || ('Parcelle ' + p.id)}}</td>
-            <td style="padding:6px; border-bottom:1px solid #f0f0f0;">{{p.surface ?? '-'}}</td>
-            <td style="padding:6px; border-bottom:1px solid #f0f0f0;">{{p.localisation || '-'}}</td>
-            <td style="padding:6px; border-bottom:1px solid #f0f0f0;">
-              <button mat-stroked-button color="warn" (click)="deleteParcelle(p.id)">Supprimer</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div *ngIf="parcels.length === 0 && !loading" style="margin-top:12px;">
-        Aucune parcelle.
-      </div>
-    </div>
-  `,
+  templateUrl: './farmer-parcels.html',
 })
 export class FarmerParcels implements OnInit {
   parcels: Parcelle[] = [];
   loading = false;
   userId: number | null = null;
 
-  constructor(private svc: ParcellesService, private route: ActivatedRoute) {}
+  // props referenced by template
+  farmerName: string | null = null;
+  errorMessage: string | null = null;
+
+  constructor(private svc: ParcellesService, private route: ActivatedRoute, private router: Router) {}
 
   ngOnInit(): void {
-    // On écoute les params de route pour récupérer l'id de l'agriculteur (:id)
+    // Try read farmer id (and optional name) from route params
     this.route.paramMap.subscribe((pm) => {
       const idFromRoute = pm.get('id');
+      const nameFromRoute = pm.get('name'); // optional param if you pass it
       if (idFromRoute) {
         this.userId = Number(idFromRoute);
       } else {
         // fallback vers localStorage si nécessaire
         this.userId = localStorage.getItem('user_id') ? Number(localStorage.getItem('user_id')) : null;
       }
-      this.load();
+      if (nameFromRoute) this.farmerName = nameFromRoute;
+      this.loadParcelles();
     });
   }
 
-  load() {
-    if (!this.userId) return;
+  loadParcelles() {
+    if (!this.userId) {
+      this.errorMessage = 'Utilisateur non spécifié.';
+      return;
+    }
+    this.errorMessage = null;
     this.loading = true;
     this.svc.getByUser(this.userId).subscribe({
-      next: (list: Parcelle[]) => { this.parcels = list; this.loading = false; },
-      error: (err: any) => { console.error(err); this.loading = false; }
+      next: (list: Parcelle[]) => {
+        this.parcels = list || [];
+        this.loading = false;
+        // if route didn't provide farmerName, try infer from first parcel row
+        if (!this.farmerName && this.parcels.length) {
+          const p0 = this.parcels[0];
+          const nom = p0.nom_agriculteur || '';
+          const prenom = p0.prenom_agriculteur || '';
+          const fullname = (nom + ' ' + prenom).trim();
+          if (fullname) this.farmerName = fullname;
+        }
+      },
+      error: (err: any) => {
+        console.error('Erreur chargement parcelles:', err);
+        this.errorMessage = 'Erreur lors du chargement des parcelles.';
+        this.loading = false;
+      }
     });
   }
 
   deleteParcelle(id: number) {
     if (!confirm('Supprimer cette parcelle ?')) return;
     this.svc.delete(id).subscribe({
-      next: () => this.load(),
+      next: () => this.loadParcelles(),
       error: (err: any) => { console.error(err); alert('Erreur suppression'); }
     });
+  }
+
+  // utilisé par template pour ouvrir détail / météo
+  openParcel(id: number) {
+    this.router.navigate(['/parcelle', id]);
   }
 }

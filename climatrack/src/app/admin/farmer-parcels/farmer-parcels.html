@@ -1,34 +1,37 @@
-<h3>Mes parcelles</h3>
+<h3 *ngIf="farmerName; else noName">Parcelles de {{ farmerName }}</h3>
+<ng-template #noName><h3>Parcelles</h3></ng-template>
 
-<div *ngIf="!userId">Utilisateur non connecté (user_id manquant)</div>
-
-<div *ngIf="userId">
-  <button mat-stroked-button color="primary" (click)="load()" [disabled]="loading">Rafraîchir</button>
-
-  <table style="width:100%; margin-top:12px; border-collapse:collapse;">
-    <thead>
-      <tr>
-        <th style="text-align:left; padding:6px; border-bottom:1px solid #ddd;">ID</th>
-        <th style="text-align:left; padding:6px; border-bottom:1px solid #ddd;">Nom</th>
-        <th style="text-align:left; padding:6px; border-bottom:1px solid #ddd;">Surface</th>
-        <th style="text-align:left; padding:6px; border-bottom:1px solid #ddd;">Localisation</th>
-        <th style="text-align:left; padding:6px; border-bottom:1px solid #ddd;">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let p of parcels">
-        <td style="padding:6px; border-bottom:1px solid #f0f0f0;">{{p.id}}</td>
-        <td style="padding:6px; border-bottom:1px solid #f0f0f0;">{{p.nom || ('Parcelle ' + p.id)}}</td>
-        <td style="padding:6px; border-bottom:1px solid #f0f0f0;">{{p.surface ?? '-'}}</td>
-        <td style="padding:6px; border-bottom:1px solid #f0f0f0;">{{p.localisation || '-'}}</td>
-        <td style="padding:6px; border-bottom:1px solid #f0f0f0;">
-          <button mat-stroked-button color="warn" (click)="deleteParcelle(p.id)">Supprimer</button>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div *ngIf="parcels.length === 0 && !loading" style="margin-top:12px;">
-    Aucune parcelle.
-  </div>
+<div *ngIf="errorMessage" style="margin-top:12px;color:#a94442;border:1px solid #f2dede;padding:8px;">
+  {{ errorMessage }}
+  <button mat-stroked-button style="margin-left:12px;" (click)="loadParcelles()">Réessayer</button>
 </div>
+
+<table *ngIf="!errorMessage" border="1" width="100%" cellpadding="6" style="margin-top:12px;">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Nom</th>
+      <th>Surface</th>
+      <th>Localisation</th>
+      <th>Agriculteur</th>
+      <th>Type</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let p of parcels">
+      <td>{{ p.id }}</td>
+      <td>{{ p.nom || ('Parcelle ' + p.id) }}</td>
+      <td>{{ p.surface ?? '-' }}</td>
+      <td>{{ p.localisation || '-' }}</td>
+      <td>
+        {{ (p.nom_agriculteur || p.prenom_agriculteur) ? ((p.nom_agriculteur || '') + ' ' + (p.prenom_agriculteur || '')).trim() : (farmerName || '-') }}
+      </td>
+      <td>{{ p.polygon ? 'Polygon' : 'Point' }}</td>
+      <td>
+        <button mat-stroked-button color="accent" (click)="openParcel(p.id)" title="Voir">Voir</button>
+        <button mat-stroked-button color="warn" (click)="deleteParcelle(p.id)" style="margin-left:8px;">Supprimer</button>
+      </td>
+    </tr>
+  </tbody>
+</table>
