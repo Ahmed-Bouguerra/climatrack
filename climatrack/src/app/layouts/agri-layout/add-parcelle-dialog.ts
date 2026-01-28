@@ -1,5 +1,5 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, ChangeDetectorRef, Inject, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { GoogleMapsModule } from '@angular/google-maps';
 import { MatDialogRef, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -7,6 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { FormsModule } from '@angular/forms';
 import { GoogleMapsLoaderService } from '../../core/services/google.maps.loader.service';
+import { ParcellesService } from '../../core/services/parcel.service';
 
 type LatLng = google.maps.LatLngLiteral;
 type ParcelleStored = { id: number; name: string; lat: number; lng: number; polygon?: string };
@@ -33,11 +34,17 @@ export class AddParcelleDialog implements OnInit {
 
   loaded = false; // true quand l'API google.maps est prête
 
+  isBrowser = false;
+
   constructor(
     private dialogRef: MatDialogRef<AddParcelleDialog>,
     private gmapsLoader: GoogleMapsLoaderService,
-    private cd: ChangeDetectorRef
-  ) {}
+    private cd: ChangeDetectorRef,
+    private parcellesSvc: ParcellesService,
+    @Inject(PLATFORM_ID) private platformId: Object
+  ) {
+    this.isBrowser = isPlatformBrowser(this.platformId);
+  }
 
   async ngOnInit(): Promise<void> {
     try {
@@ -84,7 +91,7 @@ export class AddParcelleDialog implements OnInit {
     }
 
     const centroid = this.computeCentroid(this.path);
-    const newParcelle: ParcelleStored = {
+    const newParcelleLocal: ParcelleStored = {
       id: Date.now(),
       name: this.name?.trim() || `Parcelle ${Date.now()}`,
       lat: centroid.lat,
@@ -92,16 +99,59 @@ export class AddParcelleDialog implements OnInit {
       polygon: JSON.stringify(this.path),
     };
 
+    // If we are in the browser and have user_id, try to save to backend
+    if (this.isBrowser) {
+      const uidStr = localStorage.getItem('user_id');
+      const user_id = uidStr ? Number(uidStr) : null;
+
+      if (!user_id) {
+        // fallback to local if user not known
+        this.saveToLocal(newParcelleLocal);
+        this.dialogRef.close({ saved: true, parcelle: newParcelleLocal, persisted: false });
+        return;
+      }
+
+      const payload: any = {
+        user_id: user_id,
+        nom: newParcelleLocal.name,
+        lat: newParcelleLocal.lat,
+        lng: newParcelleLocal.lng,
+        polygon: newParcelleLocal.polygon,
+        // add other optional fields if needed: surface, localisation...
+      };
+
+      this.parcellesSvc.create(payload).subscribe({
+        next: (res: any) => {
+          // Backend should return created parcelle (or at least success)
+          // If backend returns the created item use it, otherwise use our local object with maybe server id
+          const saved = res && res.parcelle ? res.parcelle : newParcelleLocal;
+          // Close and notify caller
+          this.dialogRef.close({ saved: true, parcelle: saved, persisted: true });
+        },
+        error: (err) => {
+          console.error('Erreur sauvegarde parcelle sur le serveur', err);
+          // fallback: save locally so user doesn't lose work
+          this.saveToLocal(newParcelleLocal);
+          alert('La sauvegarde sur le serveur a échoué. La parcelle a été sauvegardée localement.');
+          this.dialogRef.close({ saved: true, parcelle: newParcelleLocal, persisted: false });
+        }
+      });
+    } else {
+      // SSR or no browser: just save locally
+      this.saveToLocal(newParcelleLocal);
+      this.dialogRef.close({ saved: true, parcelle: newParcelleLocal, persisted: false });
+    }
+  }
+
+  private saveToLocal(parcelle: ParcelleStored) {
     try {
       const existingJson = localStorage.getItem('parcelles');
       const existing: ParcelleStored[] = existingJson ? JSON.parse(existingJson) : [];
-      existing.push(newParcelle);
+      existing.push(parcelle);
       localStorage.setItem('parcelles', JSON.stringify(existing));
     } catch (e) {
-      console.error('Erreur sauvegarde parcelle', e);
+      console.error('Erreur sauvegarde parcelle localement', e);
     }
-
-    this.dialogRef.close({ saved: true, parcelle: newParcelle });
   }
 
   cancel() {

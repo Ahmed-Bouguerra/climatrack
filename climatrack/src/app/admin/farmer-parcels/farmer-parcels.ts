@@ -4,6 +4,8 @@ import { ParcellesService, Parcelle } from '../../core/services/parcel.service';
 import { MatButtonModule } from '@angular/material/button';
 import { HttpClientModule } from '@angular/common/http';
 
+
+
 @Component({
   selector: 'app-farmer-parcels',
   standalone: true,

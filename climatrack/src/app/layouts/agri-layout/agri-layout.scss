@@ -1,2 +1,31 @@
+/* Agri layout toolbar and container styles */
+
+mat-toolbar {
+  background: #2E7D32; /* green tone */
+  color: #fff;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+}
+
+mat-toolbar a[mat-button], mat-toolbar button {
+  color: #fff;
+  margin-left: 8px;
+  text-transform: none;
+}
+
+/* spacer used to push items to the right */
 .spacer { flex: 1; }
-.container { padding: 16px; }
+
+/* container for page content */
+.container {
+  padding: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* small responsive adjustments */
+@media (max-width: 600px) {
+  mat-toolbar { padding: 0 8px; }
+  mat-toolbar a[mat-button], mat-toolbar button { font-size: 13px; margin-left: 6px; }
+}

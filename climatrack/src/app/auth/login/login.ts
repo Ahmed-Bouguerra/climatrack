@@ -38,6 +38,7 @@ export class LoginComponent {
         if (res.role === 'admin') {
           this.router.navigate(['/admin']);
         } else {
+          // Redirect farmer to /accueil (home) — home now loads parcels for the logged user
           this.router.navigate(['/accueil']);
         }
 
