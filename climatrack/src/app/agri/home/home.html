@@ -1,38 +1,61 @@
 <div class="home-page">
-  <div class="header">
-    <h1>Mes parcelles</h1>
-    <div class="controls">
-      <button mat-stroked-button color="primary" (click)="loadParcelles()" [disabled]="!isBrowser || apiLoaded === false">Rafraîchir</button>
+  <h2>Accueil</h2>
+
+  <div class="map-wrapper">
+    <!-- map area (unchanged) -->
+    <google-map
+      *ngIf="!mapError && isBrowser && apiLoaded && parcels.length > 0"
+      height="100%"
+      width="100%"
+      [center]="center"
+      [zoom]="zoom"
+      (mapReady)="onMapReady($event)"
+    >
+      <ng-container *ngFor="let p of parcels">
+        <map-polygon *ngIf="getPathFromParcel(p).length > 1" [paths]="getPathFromParcel(p)" [options]="{fillColor:'#00FF00', strokeColor:'#007700', strokeOpacity:0.6, fillOpacity:0.15}"></map-polygon>
+      </ng-container>
+    </google-map>
+
+    <div *ngIf="!mapError && isBrowser && (!apiLoaded || parcels.length === 0)" class="map-placeholder">
+      <div *ngIf="!apiLoaded">Chargement de la carte Google Maps…</div>
+      <div *ngIf="apiLoaded && parcels.length === 0">Aucune parcelle enregistrée pour votre compte.</div>
     </div>
   </div>
 
-  <div *ngIf="mapError" class="alert">{{ mapError }}</div>
+  <h3>Liste des parcelles</h3>
 
-  <div class="content">
-    <div class="map" *ngIf="apiLoaded">
-      <google-map height="360px" [center]="center" [zoom]="zoom"></google-map>
-    </div>
-
-    <div class="parcel-list">
-      <div *ngIf="parcels.length === 0" class="empty">Aucune parcelle.</div>
-
-      <div class="parcel-card" *ngFor="let p of parcels">
-        <div class="parcel-main">
-          <div class="parcel-title">
-            <strong>{{ p.nom || ('Parcelle ' + p.id) }}</strong>
-            <small class="id">#{{ p.id }}</small>
-          </div>
-          <div class="parcel-meta">
-            <span>Surface: {{ p.surface ?? '-' }}</span>
-            <span>Localisation: {{ p.localisation || '-' }}</span>
-          </div>
-        </div>
-
-        <div class="parcel-actions">
-          <button mat-stroked-button color="accent" (click)="openParcel(p.id)">Voir météo</button>
-          <button mat-stroked-button color="warn" (click)="deleteParcelle(p.id)" style="margin-left:8px;">Supprimer</button>
-        </div>
-      </div>
-    </div>
+  <div class="parcels-table-container">
+    <table class="parcels-table" aria-describedby="parcelles-list">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nom</th>
+          <th>Surface (m²)</th>
+          <th>Latitude</th>
+          <th>Longitude</th>
+          <th>Altitude</th>
+          <th>Type</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let p of parcels">
+          <td>{{ p.id }}</td>
+          <td><input [(ngModel)]="p.nom" /></td>
+          <td><input type="number" step="any" [(ngModel)]="p.surface" /></td>
+          <td><input type="number" step="any" [(ngModel)]="p.latitude" /></td>
+          <td><input type="number" step="any" [(ngModel)]="p.longitude" /></td>
+          <td><input type="number" step="any" [(ngModel)]="p.altitude" /></td>
+          <td>{{ p.polygon ? 'Polygon' : 'Point' }}</td>
+          <td>
+            <button mat-stroked-button color="primary" (click)="saveParcelle(p)">Enregistrer</button>
+            <button mat-stroked-button color="warn" (click)="deleteParcelle(p.id)">Supprimer</button>
+          </td>
+        </tr>
+        <tr *ngIf="parcels.length === 0" class="empty-row">
+          <td colspan="8">Aucune parcelle disponible.</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </div>

@@ -6,29 +6,40 @@ import { Observable } from 'rxjs';
 export interface Parcelle {
   id: number;
   user_id: number;
-  nom?: string;
+
+  // champs métier
+  nom?: string | null;
   surface?: number | null;
   localisation?: string | null;
-  created_at?: string;
-  // optional backend-provided fields
+
+  // coordonnées / alt
+  latitude?: number | null;   // backend canonical name
+  longitude?: number | null;  // backend canonical name
+  lat?: number | null;        // possible legacy field used by UI
+  lng?: number | null;        // possible legacy field used by UI
+  altitude?: number | null;
+  polygon?: string | null;
+
+  // champs fournis par certains endpoints (admin view)
   nom_agriculteur?: string | null;
   prenom_agriculteur?: string | null;
-  polygon?: string | null;
-  lat?: number | string | null;
-  lng?: number | string | null;
+
+  created_at?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
 export class ParcellesService {
   private api = (environment.apiBaseUrl || '').replace(/\/$/, '') + '/index.php';
 
-  constructor(public http: HttpClient) {} // public so components/tests can reuse if needed
+  constructor(private http: HttpClient) {}
 
+  // liste par user
   getByUser(userId: number): Observable<Parcelle[]> {
     const params = new HttpParams().set('action', 'parcelles').set('user_id', String(userId));
     return this.http.get<Parcelle[]>(this.api, { params });
   }
 
+  // get single by id (utilisé par parcel-details etc.)
   getById(id: number): Observable<Parcelle> {
     const params = new HttpParams().set('action', 'parcelles').set('id', String(id));
     return this.http.get<Parcelle>(this.api, { params });

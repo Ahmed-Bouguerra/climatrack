@@ -1,31 +1,144 @@
-/* src/app/agri/home/home.scss */
+/* Styles for Home page and parcels table (responsive) */
+
 .home-page {
   max-width: 1100px;
-  margin: 0 auto;
-  padding: 18px;
+  margin: 24px auto;
+  padding: 0 16px;
+  font-family: Roboto, Arial, sans-serif;
+  color: var(--mat-sys-on-surface, #222);
+}
 
-  .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+.map-wrapper {
+  margin-bottom: 16px;
+  height: 360px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(16,24,40,0.06);
+  border: 1px solid #e8e8e8;
+  position: relative;
+}
 
-  .content { display:flex; gap:20px; flex-wrap:wrap; }
+/* Map error box */
+.map-error {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  color: #a94442;
+  background: #f2dede;
+  border: 1px solid #ebcccc;
+  border-radius: 6px;
+}
+.map-error .map-error-hint {
+  margin-top: 8px;
+  font-size: 0.9rem;
+  color: #555;
+}
 
-  .map { flex: 1 1 420px; min-width:320px; }
+/* Placeholder while loading map */
+.map-placeholder {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+}
 
-  .parcel-list { flex: 0 1 360px; display:flex; flex-direction:column; gap:12px; }
+/* Table container for horizontal scroll on small screens */
+.parcels-table-container {
+  overflow-x: auto;
+  border-radius: 8px;
+  background: transparent;
+  padding: 6px 0;
+}
 
-  .parcel-card {
-    background: #fff;
-    border-radius: 8px;
-    padding: 12px;
-    box-shadow: 0 6px 12px rgba(0,0,0,0.04);
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    .parcel-main { flex:1; }
-    .parcel-actions { margin-left:12px; display:flex; gap:8px; }
+/* Main table */
+.parcels-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 700px;
+  background: #fff;
+  font-size: 14px;
+}
+
+/* Cells */
+.parcels-table th,
+.parcels-table td {
+  padding: 12px 10px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+  vertical-align: middle;
+}
+
+/* Head */
+.parcels-table thead th {
+  background: linear-gradient(180deg,#fafafa,#f5f5f5);
+  font-weight: 600;
+  color: #333;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* Row hover */
+.parcels-table tbody tr:hover {
+  background: #fbfbfb;
+}
+
+/* Zebra rows */
+.parcels-table tbody tr:nth-child(odd) {
+  background: #fff;
+}
+
+/* Action button */
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Empty row */
+.empty-row td {
+  text-align: center;
+  padding: 22px;
+  color: #666;
+}
+
+/* Responsive: transform to card-like list on small screens */
+@media (max-width: 640px) {
+  .parcels-table {
+    min-width: 0;
+    font-size: 13px;
+    border: 0;
   }
 
-  @media (max-width:800px) {
-    .content { flex-direction:column; }
-    .parcel-list { width:100%; }
+  .parcels-table thead {
+    display: none;
+  }
+
+  .parcels-table tbody tr {
+    display: block;
+    margin-bottom: 12px;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    padding: 10px;
+    background: #fff;
+  }
+
+  .parcels-table tbody td {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 6px;
+    border-bottom: none;
+  }
+
+  /* use data-label attribute from template to show label */
+  .parcels-table tbody td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #555;
+    margin-right: 8px;
   }
 }

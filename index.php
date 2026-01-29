@@ -464,5 +464,147 @@ if ($action === 'parcelles_count' && $method === 'GET') {
     respond(200, $rows);
 }
 
+
+
+
+// ================== PARCELLES (admin & user) ==================
+if ($action === 'parcelles') {
+    if ($method === 'GET') {
+        $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
+        $user_id = isset($_GET['user_id']) ? (int)$_GET['user_id'] : null;
+
+        if ($id) {
+            $stmt = stmt_prepare_or_respond($conn, "SELECT id, user_id, nom, surface, localisation, latitude, longitude, altitude, polygon, created_at FROM parcelles WHERE id=? LIMIT 1");
+            $stmt->bind_param("i", $id);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            $p = $res->fetch_assoc();
+            if ($p) respond(200, $p);
+            respond(404, ["status"=>"error","message"=>"Parcelle non trouvée"]);
+        }
+
+        if ($user_id) {
+            $stmt = stmt_prepare_or_respond($conn, "SELECT id, user_id, nom, surface, localisation, latitude, longitude, altitude, polygon, created_at FROM parcelles WHERE user_id=? ORDER BY created_at DESC");
+            $stmt->bind_param("i", $user_id);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            $list = [];
+            while ($row = $res->fetch_assoc()) $list[] = $row;
+            respond(200, $list);
+        }
+
+        // all parcelles (optionnel)
+        $res = $conn->query("SELECT id, user_id, nom, surface, localisation, latitude, longitude, altitude, polygon, created_at FROM parcelles ORDER BY created_at DESC");
+        $list = [];
+        while ($row = $res->fetch_assoc()) $list[] = $row;
+        respond(200, $list);
+    }
+
+    if ($method === 'POST') {
+        $payload = $data;
+        $user_id = isset($payload['user_id']) ? (int)$payload['user_id'] : null;
+        $nom = isset($payload['nom']) ? clean((string)$payload['nom']) : '';
+        $surface = isset($payload['surface']) ? $payload['surface'] : null;
+        $localisation = isset($payload['localisation']) ? clean((string)$payload['localisation']) : null;
+        $latitude = isset($payload['latitude']) ? $payload['latitude'] : null;
+        $longitude = isset($payload['longitude']) ? $payload['longitude'] : null;
+        $altitude = isset($payload['altitude']) ? $payload['altitude'] : null;
+        $polygon = isset($payload['polygon']) ? (string)$payload['polygon'] : null;
+
+        if (!$user_id) {
+            respond(400, ["status" => "error", "message" => "user_id required"]);
+        }
+
+        $stmt = stmt_prepare_or_respond($conn, "INSERT INTO parcelles (user_id, nom, surface, localisation, latitude, longitude, altitude, polygon, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+        // Bind everything as string except user_id (MySQL will convert numeric strings to numbers)
+        $s_surface = $surface !== null ? (string)$surface : null;
+        $s_lat = $latitude !== null ? (string)$latitude : null;
+        $s_lng = $longitude !== null ? (string)$longitude : null;
+        $s_alt = $altitude !== null ? (string)$altitude : null;
+        $stmt->bind_param("isssssss", $user_id, $nom, $s_surface, $localisation, $s_lat, $s_lng, $s_alt, $polygon);
+
+        if ($stmt->execute()) {
+            $id = $conn->insert_id;
+            // return the newly inserted parcelle
+            $stmt2 = stmt_prepare_or_respond($conn, "SELECT id, user_id, nom, surface, localisation, latitude, longitude, altitude, polygon, created_at FROM parcelles WHERE id=? LIMIT 1");
+            $stmt2->bind_param("i", $id);
+            $stmt2->execute();
+            $res = $stmt2->get_result();
+            $p = $res->fetch_assoc();
+            respond(201, $p);
+        } else {
+            respond(500, ["status" => "error", "message" => "Erreur insertion parcelle", "sql_error" => $stmt->error]);
+        }
+    }
+
+    if ($method === 'PUT') {
+        $payload = $data;
+        $id = isset($payload['id']) ? (int)$payload['id'] : null;
+        if (!$id) respond(400, ["status" => "error", "message" => "id required"]);
+
+        $nom = isset($payload['nom']) ? clean((string)$payload['nom']) : null;
+        $surface = array_key_exists('surface', $payload) ? $payload['surface'] : null;
+        $localisation = array_key_exists('localisation', $payload) ? clean((string)$payload['localisation']) : null;
+        $latitude = array_key_exists('latitude', $payload) ? $payload['latitude'] : null;
+        $longitude = array_key_exists('longitude', $payload) ? $payload['longitude'] : null;
+        $altitude = array_key_exists('altitude', $payload) ? $payload['altitude'] : null;
+        $polygon = array_key_exists('polygon', $payload) ? (string)$payload['polygon'] : null;
+
+        // Build update dynamically to allow partial updates
+        $fields = [];
+        $types = '';
+        $values = [];
+        if ($nom !== null) { $fields[] = 'nom=?'; $types .= 's'; $values[] = $nom; }
+        if ($surface !== null) { $fields[] = 'surface=?'; $types .= 's'; $values[] = (string)$surface; }
+        if ($localisation !== null) { $fields[] = 'localisation=?'; $types .= 's'; $values[] = $localisation; }
+        if ($latitude !== null) { $fields[] = 'latitude=?'; $types .= 's'; $values[] = (string)$latitude; }
+        if ($longitude !== null) { $fields[] = 'longitude=?'; $types .= 's'; $values[] = (string)$longitude; }
+        if ($altitude !== null) { $fields[] = 'altitude=?'; $types .= 's'; $values[] = (string)$altitude; }
+        if ($polygon !== null) { $fields[] = 'polygon=?'; $types .= 's'; $values[] = $polygon; }
+
+        if (empty($fields)) {
+            respond(400, ["status" => "error", "message" => "No fields to update"]);
+        }
+
+        $sql = "UPDATE parcelles SET " . implode(', ', $fields) . " WHERE id=?";
+        $stmt = stmt_prepare_or_respond($conn, $sql);
+        // bind params dynamically
+        $types .= 'i';
+        $values[] = $id;
+        // mysqli_bind_param requires variables by reference
+        $bind_names[] = $types;
+        for ($i=0; $i<count($values); $i++) {
+            $bind_name = 'bind' . $i;
+            $$bind_name = $values[$i];
+            $bind_names[] = &$$bind_name;
+        }
+        call_user_func_array([$stmt, 'bind_param'], $bind_names);
+
+        if ($stmt->execute()) {
+            // return updated row
+            $stmt2 = stmt_prepare_or_respond($conn, "SELECT id, user_id, nom, surface, localisation, latitude, longitude, altitude, polygon, created_at FROM parcelles WHERE id=? LIMIT 1");
+            $stmt2->bind_param("i", $id);
+            $stmt2->execute();
+            $res = $stmt2->get_result();
+            $p = $res->fetch_assoc();
+            respond(200, $p);
+        } else {
+            respond(500, ["status" => "error", "message" => "Erreur update parcelle", "sql_error" => $stmt->error]);
+        }
+    }
+
+    if ($method === 'DELETE') {
+        $id = isset($_GET['id']) ? (int)$_GET['id'] : (isset($data['id']) ? (int)$data['id'] : null);
+        if (!$id) respond(400, ["status" => "error", "message" => "id required"]);
+        $stmt = stmt_prepare_or_respond($conn, "DELETE FROM parcelles WHERE id=?");
+        $stmt->bind_param("i", $id);
+        if ($stmt->execute()) respond(200, ["status" => "ok"]);
+        respond(500, ["status" => "error", "message" => "Erreur suppression", "sql_error" => $stmt->error]);
+    }
+}
+
+
+
+
 // ================== DEFAULT ==================
 respond(400, ["status" => "error", "message" => "Invalid action"]);
