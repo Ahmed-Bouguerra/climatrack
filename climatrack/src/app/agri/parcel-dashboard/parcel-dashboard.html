@@ -22,13 +22,14 @@
         <td>{{ p.surface ?? '-' }}</td>
         <td>{{ p.localisation || '-' }}</td>
         <td>
-          <button mat-stroked-button color="warn" (click)="deleteParcelle(p.id)">Supprimer</button>
+          <button mat-stroked-button color="accent" (click)="router.navigate(['/parcelle', p.id])">Voir</button>
+          <button mat-stroked-button color="warn" (click)="deleteParcelle(p.id)" style="margin-left:8px;">Supprimer</button>
         </td>
       </tr>
     </tbody>
   </table>
 
   <ng-template #noParcelles>
-    <div *ngIf="!loading">Aucune parcelle trouvée.</div>
+    <div>Aucune parcelle trouvée.</div>
   </ng-template>
 </div>

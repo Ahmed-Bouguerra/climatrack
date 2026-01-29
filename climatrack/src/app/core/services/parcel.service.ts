@@ -59,4 +59,10 @@ export class ParcellesService {
     const params = new HttpParams().set('action', 'parcelles');
     return this.http.put(this.api + '?' + params.toString(), payload);
   }
+
+  // NEW: récupérer météo simulée / horaire pour une parcelle (backend: action=parcelle_meteo)
+  getMeteoForParcelle(parcelleId: number) {
+    const params = new HttpParams().set('action', 'parcelle_meteo').set('id', String(parcelleId));
+    return this.http.get<any>(this.api, { params });
+  }
 }

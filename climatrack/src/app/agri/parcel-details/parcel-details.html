@@ -10,7 +10,33 @@
     <p><strong>ID:</strong> {{ parcel.id }}</p>
     <p><strong>Surface:</strong> {{ parcel.surface ?? '-' }}</p>
     <p><strong>Localisation:</strong> {{ parcel.localisation || '-' }}</p>
+
     <hr />
+
+    <!-- Coordinates / picker -->
+    <div style="margin-bottom:12px;">
+      <p><strong>Latitude:</strong> {{ parcel.latitude ?? parcel.lat ?? '-' }}</p>
+      <p><strong>Longitude:</strong> {{ parcel.longitude ?? parcel.lng ?? '-' }}</p>
+      <p><strong>Altitude:</strong> {{ parcel.altitude ?? '-' }}</p>
+
+      <div style="margin-top:8px;">
+        <button mat-stroked-button color="primary" (click)="pickCurrentLocation()">Récupérer ma position (Geolocation)</button>
+        <button mat-stroked-button color="accent" (click)="savePickedCoordinates()" [disabled]="savingCoords || (pickLat==null || pickLng==null)" style="margin-left:8px;">
+          Enregistrer coordonnées
+        </button>
+      </div>
+
+      <div *ngIf="pickLat != null" style="margin-top:8px;">
+        <p><strong>Valeurs choisies:</strong> {{ pickLat }}, {{ pickLng }}{{ pickAlt != null ? (' , alt=' + pickAlt) : '' }}</p>
+      </div>
+      <p style="font-size:0.9em;color:#666;margin-top:6px;">
+        Remarque: j’ai implémenté un picker simple via la géolocalisation du navigateur. Si tu veux un picker Google Maps (glisser/déposer marker), je peux ajouter le code (il faudra fournir Google Maps JS API key).
+      </p>
+    </div>
+
+    <hr />
+
+    <!-- current weather (existing) -->
     <div *ngIf="loadingWeather">Chargement météo...</div>
 
     <div *ngIf="weather && !loadingWeather">
@@ -20,6 +46,39 @@
       <p *ngIf="weather.wind"><strong>Vent:</strong> {{ weather.wind.speed }} m/s</p>
       <p><strong>Conditions:</strong> {{ weather.weather[0]?.description }}</p>
       <img *ngIf="weather.weather[0]?.icon" [src]="'https://openweathermap.org/img/wn/' + weather.weather[0].icon + '@2x.png'" alt="icon" />
+    </div>
+
+    <hr />
+
+    <!-- NEW: Meteo horaire table -->
+    <div>
+      <h3>Météo horaire (simulation)</h3>
+      <div *ngIf="loadingMeteo">Chargement météo horaire...</div>
+      <div *ngIf="!loadingMeteo && meteoHourly && meteoHourly.length === 0">Aucune donnée horaire disponible.</div>
+
+      <div *ngIf="!loadingMeteo && meteoHourly && meteoHourly.length > 0">
+        <p><strong>Nombre d'heures avec temp < 7°C:</strong> {{ nbHeuresTempSous7 ?? '-' }}</p>
+        <table border="1" cellpadding="6" cellspacing="0" width="100%" style="margin-top:8px;">
+          <thead>
+            <tr>
+              <th>Heure</th>
+              <th>Température (°C)</th>
+              <th>Humidité (%)</th>
+              <th>Vent (m/s)</th>
+              <th>Pluie (mm)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let h of meteoHourly">
+              <td>{{ h.heure }}</td>
+              <td>{{ h.temperature }}</td>
+              <td>{{ h.humidite }}</td>
+              <td>{{ h.vent }}</td>
+              <td>{{ h.pluie }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>

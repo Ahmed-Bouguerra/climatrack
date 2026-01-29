@@ -1,14 +1,13 @@
 import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { ParcellesService, Parcelle } from '../../core/services/parcel.service';
-import { HttpClientModule } from '@angular/common/http';
-import { MatButtonModule } from '@angular/material/button';
 
 @Component({
   selector: 'app-parcel-dashboard',
   standalone: true,
-  imports: [CommonModule, HttpClientModule, MatButtonModule],
+  imports: [CommonModule, RouterModule],
   templateUrl: './parcel-dashboard.html',
   styleUrls: ['./parcel-dashboard.scss'],
 })
@@ -21,13 +20,13 @@ export class ParcelDashboard implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private svc: ParcellesService,
+    public router: Router, // <-- public so template can use router.navigate(...)
     @Inject(PLATFORM_ID) platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(platformId);
   }
 
   ngOnInit(): void {
-    // Prefer route param; fallback to localStorage (login writes it)
     const paramId = this.route.snapshot.paramMap.get('id');
     if (paramId) {
       this.userId = Number(paramId);
@@ -53,5 +52,10 @@ export class ParcelDashboard implements OnInit {
       next: () => this.load(),
       error: (err) => console.error('Erreur suppression parcelle', err)
     });
+  }
+
+  // utile pour template
+  openParcel(id: number) {
+    this.router.navigate(['/parcelle', id]);
   }
 }

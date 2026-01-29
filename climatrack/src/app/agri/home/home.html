@@ -1,39 +1,4 @@
-<div class="home-page">
-  <h2>Accueil</h2>
-
-  <div style="margin-bottom:16px; height:360px;">
-    <!-- If there's a map error, show a clear message instead of instantiating google-map -->
-    <div *ngIf="mapError" class="map-error" style="display:flex;align-items:center;justify-content:center;padding:16px;color:#a94442;background:#f2dede;border:1px solid #ebcccc;">
-      <div>
-        <strong>Erreur Google Maps :</strong>
-        <div>{{ mapError }}</div>
-        <div style="margin-top:8px;font-size:0.9em;color:#555">
-          Solution rapide : activez le billing dans Google Cloud Console, activez Maps JavaScript API et vérifiez les restrictions de la clé.
-        </div>
-      </div>
-    </div>
-
-    <!-- Show the map only on browser and after Maps API is loaded and no map error -->
-    <google-map
-      *ngIf="!mapError && isBrowser && apiLoaded && parcels.length > 0"
-      height="100%"
-      width="100%"
-      [center]="center"
-      [zoom]="zoom"
-      mapId="YOUR_MAP_ID_HERE"
-      (mapReady)="onMapReady($event)"
-    >
-      <ng-container *ngFor="let p of parcels">
-        <map-polygon *ngIf="getPathFromParcel(p).length > 1" [paths]="getPathFromParcel(p)" [options]="{fillColor:'#00FF00', strokeColor:'#007700', strokeOpacity:0.6, fillOpacity:0.15}"></map-polygon>
-      </ng-container>
-    </google-map>
-
-    <div *ngIf="!mapError && isBrowser && (!apiLoaded || parcels.length === 0)" style="height:360px; display:flex; align-items:center; justify-content:center;">
-      <div *ngIf="!apiLoaded">Chargement de la carte Google Maps…</div>
-      <div *ngIf="apiLoaded && parcels.length === 0">Aucune parcelle enregistrée pour votre compte.</div>
-    </div>
-  </div>
-
+<!-- fragment from existing home.html updated: added Altitude column and Voir button -->
   <h3>Liste des parcelles</h3>
   <table border="1" width="100%" cellpadding="6" cellspacing="0">
     <thead>
@@ -42,6 +7,7 @@
         <th>Nom</th>
         <th>Latitude</th>
         <th>Longitude</th>
+        <th>Altitude</th>
         <th>Type</th>
         <th>Actions</th>
       </tr>
@@ -50,16 +16,17 @@
       <tr *ngFor="let p of parcels">
         <td>{{ p.id }}</td>
         <td>{{ p.nom || ('Parcelle ' + p.id) }}</td>
-        <td>{{ p.lat ?? '-' }}</td>
-        <td>{{ p.lng ?? '-' }}</td>
+        <td>{{ p.latitude ?? p.lat ?? '-' }}</td>
+        <td>{{ p.longitude ?? p.lng ?? '-' }}</td>
+        <td>{{ p.altitude ?? '-' }}</td>
         <td>{{ p.polygon ? 'Polygon' : 'Point' }}</td>
         <td>
-          <button mat-stroked-button color="warn" (click)="deleteParcelle(p.id)">Supprimer</button>
+          <button mat-stroked-button color="accent" (click)="voirDetails(p.id)">Voir</button>
+          <button mat-stroked-button color="warn" (click)="deleteParcelle(p.id)" style="margin-left:8px;">Supprimer</button>
         </td>
       </tr>
       <tr *ngIf="parcels.length === 0">
-        <td colspan="6">Aucune parcelle disponible.</td>
+        <td colspan="7">Aucune parcelle disponible.</td>
       </tr>
     </tbody>
   </table>
-</div>
