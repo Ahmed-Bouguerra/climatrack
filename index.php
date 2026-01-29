@@ -605,33 +605,140 @@ if ($action === 'parcelles') {
 
 
 // ================== PARCELLE_METEO DETAILS ==================
-if ($action === 'parcelle_meteo' && $method === 'GET') {
-    $parcelle_id = isset($_GET['id']) ? (int)$_GET['id'] : null;
-    if(!$parcelle_id) {
-        respond(400, ["status" => "error", "message" => "id required"]);
+$dbHost = "localhost";
+$dbUser = "root";
+$dbPass = "";
+$dbName = "climatrack_db";
+
+$openWeatherApiKey = getenv('OPENWEATHER_API_KEY') ?: 'YOUR_OPENWEATHER_API_KEY_HERE';
+if ($openWeatherApiKey === 'YOUR_OPENWEATHER_API_KEY_HERE') {
+    echo "[" . date('c') . "] WARNING: OPENWEATHER_API_KEY not set\n";
+    // you may exit(1) if you want to force configuration
+}
+
+$baseUrl = "https://api.openweathermap.org/data/2.5/weather";
+
+$conn = new mysqli($dbHost, $dbUser, $dbPass, $dbName);
+if ($conn->connect_error) {
+    echo "DB error: " . $conn->connect_error . PHP_EOL;
+    exit(1);
+}
+$conn->set_charset('utf8mb4');
+
+// get parcelles with coordinates
+$q = "SELECT id, latitude, longitude FROM parcelles WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND latitude <> '' AND longitude <> ''";
+$res = $conn->query($q);
+if (!$res) {
+    echo "DB query error: " . $conn->error . PHP_EOL;
+    exit(1);
+}
+
+$insertStmt = $conn->prepare("INSERT INTO meteo_data (parcelle_id, temperature, humidite, pluie, vent, date_releve, is_cold) VALUES (?, ?, ?, ?, ?, ?, ?)");
+if ($insertStmt === false) {
+    echo "Prepare insert error: " . $conn->error . PHP_EOL;
+    exit(1);
+}
+
+$checkStmt = $conn->prepare("SELECT id FROM meteo_data WHERE parcelle_id = ? AND date_releve = ? LIMIT 1");
+if ($checkStmt === false) {
+    echo "Prepare check error: " . $conn->error . PHP_EOL;
+    exit(1);
+}
+
+while ($row = $res->fetch_assoc()) {
+    $pid = (int)$row['id'];
+    $lat = $row['latitude'];
+    $lon = $row['longitude'];
+
+    // build request
+    $url = $baseUrl . "?lat=" . urlencode($lat) . "&lon=" . urlencode($lon) . "&units=metric&appid=" . $openWeatherApiKey;
+
+    // call API
+    $opts = [
+        "http" => [
+            "method" => "GET",
+            "timeout" => 10
+        ]
+    ];
+    $context = stream_context_create($opts);
+    $resp = @file_get_contents($url, false, $context);
+    if ($resp === false) {
+        echo "[" . date('c') . "] API request failed for parcelle {$pid} ({$lat},{$lon})\n";
+        continue;
+    }
+    $json = json_decode($resp, true);
+    if (!is_array($json)) {
+        echo "[" . date('c') . "] Invalid JSON for parcelle {$pid}\n";
+        continue;
     }
 
-    // Simulation: génère 24 entrées horaires sur 24h
-    $data = [];
-    $count_under_7 = 0;
-    for ($h = 0; $h < 24; $h++) {
-        $temp = rand(2, 18); // simulation
-        $hum = rand(50, 98);
-        $wind = rand(2, 20);
-        $rain = rand(0, 5) / 10;
-        if ($temp < 7) $count_under_7++;
-        $data[] = [
-            "heure" => "$h:00",
-            "temperature" => $temp,
-            "humidite" => $hum,
-            "vent" => $wind,
-            "pluie" => $rain
-        ];
+    $temp = isset($json['main']['temp']) ? floatval($json['main']['temp']) : null;
+    $hum = isset($json['main']['humidity']) ? floatval($json['main']['humidity']) : null;
+    $wind = isset($json['wind']['speed']) ? floatval($json['wind']['speed']) : 0.0;
+    // rain may be under rain['1h'] or rain['3h']
+    $rain = 0.0;
+    if (isset($json['rain']['1h'])) $rain = floatval($json['rain']['1h']);
+    elseif (isset($json['rain']['3h'])) $rain = floatval($json['rain']['3h']);
+
+    $is_cold = ($temp !== null && $temp < 7.0) ? 1 : 0;
+
+    // round date to hour start to avoid duplicate hourly inserts
+    $date_releve = date('Y-m-d H:00:00');
+
+    // check existing
+    $checkStmt->bind_param("is", $pid, $date_releve);
+    $checkStmt->execute();
+    $checkStmt->store_result();
+    if ($checkStmt->num_rows > 0) {
+        echo "[" . date('c') . "] Relevé already exists for parcelle {$pid} at {$date_releve}, skipping\n";
+        $checkStmt->free_result();
+        continue;
     }
-    respond(200, [
-        "data" => $data,
-        "nb_heures_temp_sous_7" => $count_under_7
-    ]);
+    $checkStmt->free_result();
+
+    // insert
+    // types: i (parcelle_id), d temp, d humidity, d pluie, d vent, s date, i is_cold => "iddddsi"
+    $insertStmt->bind_param("iddddsi", $pid, $temp, $hum, $rain, $wind, $date_releve, $is_cold);
+    if (!$insertStmt->execute()) {
+        echo "[" . date('c') . "] Insert failed for parcelle {$pid}: " . $insertStmt->error . "\n";
+        continue;
+    }
+    echo "[" . date('c') . "] Inserted meteo for parcelle {$pid} (temp={$temp}, hum={$hum}, rain={$rain}, wind={$wind}, is_cold={$is_cold})\n";
+
+    // respect rate limits - tiny sleep to be polite
+    usleep(200000); // 200ms
+}
+
+$insertStmt->close();
+$checkStmt->close();
+$conn->close();
+// ----------------- METEO HISTORY / SUMMARY -----------------
+if ($action === 'meteo_history' && $method === 'GET') {
+    $parcelle_id = isset($_GET['parcelle_id']) ? (int)$_GET['parcelle_id'] : null;
+    if (!$parcelle_id) {
+        respond(400, ["status" => "error", "message" => "parcelle_id required"]);
+    }
+
+    // optional: limit number of records (default 48 = last 48 hours)
+    $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 48;
+
+    // fetch recent records
+    $stmt = stmt_prepare_or_respond($conn, "SELECT id, parcelle_id, temperature, humidite, pluie, vent, date_releve, is_cold FROM meteo_data WHERE parcelle_id = ? ORDER BY date_releve DESC LIMIT ?");
+    $stmt->bind_param("ii", $parcelle_id, $limit);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $rows = [];
+    while ($r = $res->fetch_assoc()) $rows[] = $r;
+
+    // compute number of hours with temp < 7 in last 24h
+    $stmt2 = stmt_prepare_or_respond($conn, "SELECT COUNT(*) AS cold_hours FROM meteo_data WHERE parcelle_id = ? AND is_cold = 1 AND date_releve >= (NOW() - INTERVAL 24 HOUR)");
+    $stmt2->bind_param("i", $parcelle_id);
+    $stmt2->execute();
+    $res2 = $stmt2->get_result();
+    $cold_count = 0;
+    if ($r2 = $res2->fetch_assoc()) $cold_count = (int)$r2['cold_hours'];
+
+    respond(200, ["data" => $rows, "cold_hours_last_24h" => $cold_count]);
 }
 
 // ================== DEFAULT ==================
