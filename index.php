@@ -604,7 +604,35 @@ if ($action === 'parcelles') {
 }
 
 
+// ================== PARCELLE_METEO DETAILS ==================
+if ($action === 'parcelle_meteo' && $method === 'GET') {
+    $parcelle_id = isset($_GET['id']) ? (int)$_GET['id'] : null;
+    if(!$parcelle_id) {
+        respond(400, ["status" => "error", "message" => "id required"]);
+    }
 
+    // Simulation: génère 24 entrées horaires sur 24h
+    $data = [];
+    $count_under_7 = 0;
+    for ($h = 0; $h < 24; $h++) {
+        $temp = rand(2, 18); // simulation
+        $hum = rand(50, 98);
+        $wind = rand(2, 20);
+        $rain = rand(0, 5) / 10;
+        if ($temp < 7) $count_under_7++;
+        $data[] = [
+            "heure" => "$h:00",
+            "temperature" => $temp,
+            "humidite" => $hum,
+            "vent" => $wind,
+            "pluie" => $rain
+        ];
+    }
+    respond(200, [
+        "data" => $data,
+        "nb_heures_temp_sous_7" => $count_under_7
+    ]);
+}
 
 // ================== DEFAULT ==================
 respond(400, ["status" => "error", "message" => "Invalid action"]);
