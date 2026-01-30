@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Parcelles — Ajouter / Modifier</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+    #map { height: 400px; width: 100%; }
+    .container { padding: 16px; max-width: 900px; margin: 0 auto; }
+    label { display:block; margin-top:8px; }
+    input[type="text"], input[type="number"] { width:100%; padding:8px; box-sizing:border-box; }
+    button { margin-top:12px; padding:10px 16px; }
+    table { width:100%; border-collapse: collapse; margin-top:16px; }
+    table th, table td { border:1px solid #ddd; padding:8px; text-align:left; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Ajouter / Modifier Parcelle</h1>
+
+    <div id="map"></div>
+
+    <form id="parcelleForm">
+      <label>user_id (id agriculteur)
+        <input type="number" id="user_id" required />
+      </label>
+      <label>Nom parcelle
+        <input type="text" id="nom" required />
+      </label>
+      <label>Surface
+        <input type="number" id="surface" step="0.01" />
+      </label>
+      <label>Localisation
+        <input type="text" id="localisation" />
+      </label>
+      <label>Latitude
+        <input type="text" id="latitude" readonly />
+      </label>
+      <label>Longitude
+        <input type="text" id="longitude" readonly />
+      </label>
+      <label>Altitude (m)
+        <input type="text" id="altitude" readonly />
+      </label>
+
+      <input type="hidden" id="id" />
+      <button type="submit">Enregistrer la parcelle</button>
+    </form>
+
+    <h2>Parcelles</h2>
+    <button id="refreshBtn">Rafraîchir la liste</button>
+    <table id="parcellesTable">
+      <thead>
+        <tr><th>ID</th><th>Nom</th><th>User</th><th>Surface</th><th>Latitude</th><th>Longitude</th><th>Altitude</th><th>Actions</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <p style="margin-top:1rem; color:#555;">Astuce: déplacez le marker pour sélectionner la position. L'altitude est récupérée automatiquement.</p>
+  </div>
+
+  <script>
+    // CONFIG : remplacez par votre clé Google Maps
+    const GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY_HERE';
+    // Endpoint API (ajustez si nécessaire)
+    const API_BASE = '/index.php';
+
+    let map, marker, geocoder, elevator;
+
+    function initMap() {
+      const defaultPos = { lat: 36.8065, lng: 10.1815 }; // Tunis par défaut
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: defaultPos,
+        zoom: 8
+      });
+
+      marker = new google.maps.Marker({
+        position: defaultPos,
+        map: map,
+        draggable: true,
+        title: 'Déplacez-moi pour sélectionner la position'
+      });
+
+      geocoder = new google.maps.Geocoder();
+      elevator = new google.maps.ElevationService();
+
+      // quand le marker bouge, met à jour les champs lat/lng/alt
+      marker.addListener('dragend', () => {
+        const pos = marker.getPosition();
+        updatePositionFields(pos.lat(), pos.lng());
+        fetchAltitude(pos);
+      });
+
+      // click sur la carte déplace le marker
+      map.addListener('click', (e) => {
+        marker.setPosition(e.latLng);
+        updatePositionFields(e.latLng.lat(), e.latLng.lng());
+        fetchAltitude(e.latLng);
+      });
+
+      // initial fill
+      updatePositionFields(defaultPos.lat, defaultPos.lng);
+      fetchAltitude(new google.maps.LatLng(defaultPos.lat, defaultPos.lng));
+    }
+
+    function updatePositionFields(lat, lng) {
+      document.getElementById('latitude').value = lat;
+      document.getElementById('longitude').value = lng;
+    }
+
+    function fetchAltitude(latlng) {
+      elevator.getElevationForLocations({ locations: [latlng] }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+          document.getElementById('altitude').value = results[0].elevation.toFixed(2);
+        } else {
+          document.getElementById('altitude').value = '';
+          console.warn('ElevationService failed: ', status);
+        }
+      });
+    }
+
+    async function submitForm(e) {
+      e.preventDefault();
+      const payload = {
+        action: 'parcelles',
+        user_id: parseInt(document.getElementById('user_id').value || '0'),
+        nom: document.getElementById('nom').value,
+        surface: document.getElementById('surface').value || null,
+        localisation: document.getElementById('localisation').value || null,
+        latitude: document.getElementById('latitude').value || null,
+        longitude: document.getElementById('longitude').value || null,
+        altitude: document.getElementById('altitude').value || null
+      };
+      // If id present, do PUT instead (update)
+      const id = document.getElementById('id').value;
+      try {
+        let res;
+        if (id) {
+          payload.id = parseInt(id);
+          res = await fetch(API_BASE + '?action=parcelles', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        } else {
+          res = await fetch(API_BASE + '?action=parcelles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        }
+        const json = await res.json();
+        if (res.ok) {
+          alert('Parcelle enregistrée');
+          document.getElementById('parcelleForm').reset();
+          refreshList();
+        } else {
+          alert('Erreur: ' + JSON.stringify(json));
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Erreur réseau');
+      }
+    }
+
+    async function refreshList() {
+      const tbody = document.querySelector('#parcellesTable tbody');
+      tbody.innerHTML = '<tr><td colspan="8">Chargement...</td></tr>';
+      try {
+        const res = await fetch(API_BASE + '?action=parcelles', { method: 'GET' });
+        const json = await res.json();
+        if (!res.ok) {
+          tbody.innerHTML = '<tr><td colspan="8">Erreur: ' + JSON.stringify(json) + '</td></tr>';
+          return;
+        }
+        tbody.innerHTML = '';
+        json.forEach(p => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${p.id}</td><td>${escapeHtml(p.nom)}</td><td>${p.user_id}</td><td>${p.surface ?? ''}</td><td>${p.latitude ?? ''}</td><td>${p.longitude ?? ''}</td><td>${p.altitude ?? ''}</td>
+            <td>
+              <button data-id="${p.id}" class="btn-edit">Edit</button>
+              <button data-id="${p.id}" class="btn-del">Delete</button>
+            </td>`;
+          tbody.appendChild(tr);
+        });
+        // attach events
+        document.querySelectorAll('.btn-edit').forEach(b => b.addEventListener('click', onEdit));
+        document.querySelectorAll('.btn-del').forEach(b => b.addEventListener('click', onDelete));
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="8">Erreur réseau</td></tr>';
+      }
+    }
+
+    async function onEdit(e) {
+      const id = e.target.getAttribute('data-id');
+      const res = await fetch(API_BASE + '?action=parcelles&id=' + encodeURIComponent(id));
+      const json = await res.json();
+      if (!res.ok) {
+        alert('Erreur: ' + JSON.stringify(json));
+        return;
+      }
+      document.getElementById('id').value = json.id;
+      document.getElementById('user_id').value = json.user_id;
+      document.getElementById('nom').value = json.nom;
+      document.getElementById('surface').value = json.surface;
+      document.getElementById('localisation').value = json.localisation;
+      document.getElementById('latitude').value = json.latitude;
+      document.getElementById('longitude').value = json.longitude;
+      document.getElementById('altitude').value = json.altitude;
+      // move marker & center
+      if (json.latitude && json.longitude) {
+        const pos = { lat: parseFloat(json.latitude), lng: parseFloat(json.longitude) };
+        marker.setPosition(pos);
+        map.panTo(pos);
+      }
+    }
+
+    async function onDelete(e) {
+      if (!confirm('Supprimer cette parcelle ?')) return;
+      const id = e.target.getAttribute('data-id');
+      const payload = { action: 'parcelles', id: parseInt(id) };
+      const res = await fetch(API_BASE + '?action=parcelles', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (res.ok) {
+        alert('Parcelle supprimée');
+        refreshList();
+      } else {
+        alert('Erreur: ' + JSON.stringify(json));
+      }
+    }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/[&<>"'`=\/]/g, function (s) {
+        return '&#' + s.charCodeAt(0) + ';';
+      });
+    }
+
+    document.getElementById('parcelleForm').addEventListener('submit', submitForm);
+    document.getElementById('refreshBtn').addEventListener('click', refreshList);
+
+    // Load the Google Maps script dynamically with callback
+    function loadGoogleMaps() {
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap&libraries=places`;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+
+    window.initMap = initMap;
+    window.addEventListener('load', () => {
+      loadGoogleMaps();
+      refreshList();
+    });
+  </script>
+</body>
+</html>

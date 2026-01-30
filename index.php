@@ -1,6 +1,6 @@
 <?php
-// index.php - API minimale pour Climatrack
-// Remplacez / adaptez selon votre environnement avant mise en production.
+// index.php - API minimale pour Climatrack (VERSION CORRIGÉE)
+// Remplacez/adaptez selon votre environnement avant mise en production.
 
 // ------------------ CONFIG ------------------
 $allowed_origins = [
@@ -9,7 +9,8 @@ $allowed_origins = [
 ];
 
 // ------------------ HELPERS ------------------
-function respond(int $statusCode, array $payload) {
+function respond(int $statusCode, $payload) {
+    // $payload peut être tableau ou string
     http_response_code($statusCode);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode($payload, JSON_UNESCAPED_UNICODE);
@@ -23,7 +24,7 @@ function getJsonBody(): array {
     return is_array($data) ? $data : [];
 }
 
-// Nettoyage simple des inputs (vous pouvez renforcer selon besoins)
+// Nettoyage simple des inputs
 function clean(string $v): string {
     return trim($v);
 }
@@ -32,15 +33,18 @@ function clean(string $v): string {
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if (in_array($origin, $allowed_origins, true)) {
     header("Access-Control-Allow-Origin: {$origin}");
+    header("Access-Control-Allow-Credentials: true");
 } else {
     // En dev on autorise localhost ; en production, liste restreinte recommandée
-    header("Access-Control-Allow-Origin: http://localhost:4200");
+    header("Access-Control-Allow-Origin: *");
+    header("Access-Control-Allow-Credentials: false");
 }
-header('Access-Control-Allow-Origin: *');
 header("Access-Control-Allow-Methods: POST, GET, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
-header("Access-Control-Allow-Credentials: true");
-header("Content-Security-Policy: default-src 'self' https://maps.googleapis.com https://maps.gstatic.com; script-src 'self' 'unsafe-inline' https://maps.googleapis.com https://maps.gstatic.com; img-src 'self' data: https://maps.gstatic.com; connect-src 'self' https://maps.googleapis.com;");
+
+// Content-Security-Policy exemple (adaptez selon besoins)
+header("Content-Security-Policy: default-src 'self' https:; script-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https:");
+
 // Répondre aux préflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
@@ -56,7 +60,7 @@ $dbName = "climatrack_db";
 
 $conn = new mysqli($dbHost, $dbUser, $dbPass, $dbName);
 if ($conn->connect_error) {
-    respond(500, ["status" => "error", "message" => "DB connection error"]);
+    respond(500, ["status" => "error", "message" => "DB connection error", "sql_error" => $conn->connect_error]);
 }
 $conn->set_charset('utf8mb4');
 
@@ -73,10 +77,12 @@ $password = isset($data['password']) ? (string)$data['password'] : '';
 function stmt_prepare_or_respond($conn, string $sql) {
     $stmt = $conn->prepare($sql);
     if ($stmt === false) {
-        respond(500, ["status" => "error", "message" => "DB prepare error", "sql_error" => $conn->error]);
+        respond(500, ["status" => "error", "message" => "DB prepare error", "sql_error" => $conn->error, "sql" => $sql]);
     }
     return $stmt;
 }
+
+// ----------------- ROUTES -----------------
 
 // ================== GET FARMERS ==================
 if ($action === 'farmers' && $method === 'GET') {
@@ -109,7 +115,6 @@ if ($action === 'farmers' && $method === 'GET') {
 
 // ================== DELETE FARMER ==================
 if ($action === 'farmers' && $method === 'DELETE') {
-    // id peut venir en query param ou dans le body JSON
     $farmer_id = isset($_GET['id']) ? (int)$_GET['id'] : (isset($data['id']) ? (int)$data['id'] : null);
 
     if (!$farmer_id) {
@@ -304,24 +309,26 @@ if ($action === 'changePassword' && $method === 'PUT') {
         respond(500, ["status" => "error", "message" => "Erreur lors de la mise à jour en base de données", "sql_error" => $stmt->error]);
     }
 }
-// ================== PARCELLES (admin) ==================
+
+// ================== PARCELLES (admin & user) ==================
 if ($action === 'parcelles') {
+    // GET: list or single
     if ($method === 'GET') {
         $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
         $user_id = isset($_GET['user_id']) ? (int)$_GET['user_id'] : null;
 
         if ($id) {
-            $stmt = stmt_prepare_or_respond($conn, "SELECT id, user_id, nom, surface, localisation, created_at FROM parcelles WHERE id=? LIMIT 1");
+            $stmt = stmt_prepare_or_respond($conn, "SELECT id, user_id, nom, surface, localisation, latitude, longitude, altitude, polygon, created_at FROM parcelles WHERE id=? LIMIT 1");
             $stmt->bind_param("i", $id);
             $stmt->execute();
             $res = $stmt->get_result();
             $p = $res->fetch_assoc();
             if ($p) respond(200, $p);
-            respond(404, ["status"=>"error","message"=>"Parcelle non trouvée"]);
+            respond(404, ["status" => "error", "message" => "Parcelle non trouvée"]);
         }
 
         if ($user_id) {
-            $stmt = stmt_prepare_or_respond($conn, "SELECT id, user_id, nom, surface, localisation, created_at FROM parcelles WHERE user_id=? ORDER BY created_at DESC");
+            $stmt = stmt_prepare_or_respond($conn, "SELECT id, user_id, nom, surface, localisation, latitude, longitude, altitude, polygon, created_at FROM parcelles WHERE user_id=? ORDER BY created_at DESC");
             $stmt->bind_param("i", $user_id);
             $stmt->execute();
             $res = $stmt->get_result();
@@ -331,68 +338,126 @@ if ($action === 'parcelles') {
         }
 
         // all parcelles (optionnel)
-        $res = $conn->query("SELECT id, user_id, nom, surface, localisation, created_at FROM parcelles ORDER BY created_at DESC");
+        $res = $conn->query("SELECT id, user_id, nom, surface, localisation, latitude, longitude, altitude, polygon, created_at FROM parcelles ORDER BY created_at DESC");
+        if (!$res) {
+            respond(500, ["status" => "error", "message" => "DB query error", "sql_error" => $conn->error]);
+        }
         $list = [];
         while ($row = $res->fetch_assoc()) $list[] = $row;
         respond(200, $list);
     }
 
+    // POST: create
     if ($method === 'POST') {
         $payload = $data;
         $user_id = isset($payload['user_id']) ? (int)$payload['user_id'] : null;
-        $nom = clean((string)($payload['nom'] ?? ''));
-        $surface = isset($payload['surface']) ? (float)$payload['surface'] : null;
-        $localisation = clean((string)($payload['localisation'] ?? ''));
+        $nom = isset($payload['nom']) ? clean((string)$payload['nom']) : '';
+        $surface = isset($payload['surface']) ? $payload['surface'] : null;
+        $localisation = isset($payload['localisation']) ? clean((string)$payload['localisation']) : null;
+        $latitude = isset($payload['latitude']) ? $payload['latitude'] : null;
+        $longitude = isset($payload['longitude']) ? $payload['longitude'] : null;
+        $altitude = isset($payload['altitude']) ? $payload['altitude'] : null;
+        $polygon = isset($payload['polygon']) ? (string)$payload['polygon'] : null;
 
-        if (!$user_id || $nom === '') {
-            respond(400, ["status"=>"error","message"=>"user_id et nom requis"]);
+        if (!$user_id) {
+            respond(400, ["status" => "error", "message" => "user_id required"]);
         }
 
-        $stmt = stmt_prepare_or_respond($conn, "INSERT INTO parcelles (user_id, nom, surface, localisation) VALUES (?, ?, ?, ?)");
-        $stmt->bind_param("isds", $user_id, $nom, $surface, $localisation);
-        if (!$stmt->execute()) respond(500, ["status"=>"error","message"=>"DB insert error","sql_error"=>$stmt->error]);
+        $stmt = stmt_prepare_or_respond($conn, "INSERT INTO parcelles (user_id, nom, surface, localisation, latitude, longitude, altitude, polygon, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+        // Bind: i s s s s s s s  -> we'll convert numeric to string except user_id
+        $s_surface = $surface !== null ? (string)$surface : null;
+        $s_lat = $latitude !== null ? (string)$latitude : null;
+        $s_lng = $longitude !== null ? (string)$longitude : null;
+        $s_alt = $altitude !== null ? (string)$altitude : null;
 
-        $newId = $stmt->insert_id;
-        respond(201, ["status"=>"ok","message"=>"Parcelle créée","id"=>$newId]);
+        // For null values, mysqli requires passing null as null; bind_param with 's' will accept null if variable is null
+        $stmt->bind_param("isssssss", $user_id, $nom, $s_surface, $localisation, $s_lat, $s_lng, $s_alt, $polygon);
+
+        if ($stmt->execute()) {
+            $id = $conn->insert_id;
+            // return the newly inserted parcelle
+            $stmt2 = stmt_prepare_or_respond($conn, "SELECT id, user_id, nom, surface, localisation, latitude, longitude, altitude, polygon, created_at FROM parcelles WHERE id=? LIMIT 1");
+            $stmt2->bind_param("i", $id);
+            $stmt2->execute();
+            $res = $stmt2->get_result();
+            $p = $res->fetch_assoc();
+            respond(201, $p);
+        } else {
+            respond(500, ["status" => "error", "message" => "Erreur insertion parcelle", "sql_error" => $stmt->error]);
+        }
     }
 
+    // PUT: update (partial updates allowed)
     if ($method === 'PUT') {
         $payload = $data;
         $id = isset($payload['id']) ? (int)$payload['id'] : null;
-        if (!$id) respond(400, ["status"=>"error","message"=>"id requis"]);
+        if (!$id) respond(400, ["status" => "error", "message" => "id required"]);
 
         $nom = array_key_exists('nom', $payload) ? clean((string)$payload['nom']) : null;
-        $surface = array_key_exists('surface', $payload) ? (float)$payload['surface'] : null;
+        $surface = array_key_exists('surface', $payload) ? $payload['surface'] : null;
         $localisation = array_key_exists('localisation', $payload) ? clean((string)$payload['localisation']) : null;
+        $latitude = array_key_exists('latitude', $payload) ? $payload['latitude'] : null;
+        $longitude = array_key_exists('longitude', $payload) ? $payload['longitude'] : null;
+        $altitude = array_key_exists('altitude', $payload) ? $payload['altitude'] : null;
+        $polygon = array_key_exists('polygon', $payload) ? (string)$payload['polygon'] : null;
 
-        $fields = []; $types = ""; $values = [];
-        if ($nom !== null) { $fields[] = "nom=?"; $types .= "s"; $values[] = $nom; }
-        if ($surface !== null) { $fields[] = "surface=?"; $types .= "d"; $values[] = $surface; }
-        if ($localisation !== null) { $fields[] = "localisation=?"; $types .= "s"; $values[] = $localisation; }
+        $fields = [];
+        $types = '';
+        $values = [];
+        if ($nom !== null) { $fields[] = 'nom=?'; $types .= 's'; $values[] = $nom; }
+        if ($surface !== null) { $fields[] = 'surface=?'; $types .= 's'; $values[] = (string)$surface; }
+        if ($localisation !== null) { $fields[] = 'localisation=?'; $types .= 's'; $values[] = $localisation; }
+        if ($latitude !== null) { $fields[] = 'latitude=?'; $types .= 's'; $values[] = (string)$latitude; }
+        if ($longitude !== null) { $fields[] = 'longitude=?'; $types .= 's'; $values[] = (string)$longitude; }
+        if ($altitude !== null) { $fields[] = 'altitude=?'; $types .= 's'; $values[] = (string)$altitude; }
+        if ($polygon !== null) { $fields[] = 'polygon=?'; $types .= 's'; $values[] = $polygon; }
 
-        if (empty($fields)) respond(400, ["status"=>"error","message"=>"no fields to update"]);
+        if (empty($fields)) {
+            respond(400, ["status" => "error", "message" => "No fields to update"]);
+        }
 
-        $sql = "UPDATE parcelles SET " . implode(", ", $fields) . " WHERE id=?";
-        $types .= "i"; $values[] = $id;
+        $sql = "UPDATE parcelles SET " . implode(', ', $fields) . " WHERE id=?";
         $stmt = stmt_prepare_or_respond($conn, $sql);
-        // bind params dynamiquement
-        $stmt->bind_param($types, ...$values);
-        if (!$stmt->execute()) respond(500, ["status"=>"error","message"=>"DB update error","sql_error"=>$stmt->error]);
 
-        respond(200, ["status"=>"ok","message"=>"Parcelle mise à jour"]);
+        // bind params dynamically - build array of references
+        $types .= 'i';
+        $values[] = $id;
+
+        // mysqli requires references
+        $bind_params = [];
+        $bind_params[] = $types;
+        foreach ($values as $k => $v) {
+            // create variable to hold by-reference
+            $bind_params[] = &$values[$k];
+        }
+        // call bind_param with dynamic args
+        call_user_func_array([$stmt, 'bind_param'], $bind_params);
+
+        if ($stmt->execute()) {
+            // return updated row
+            $stmt2 = stmt_prepare_or_respond($conn, "SELECT id, user_id, nom, surface, localisation, latitude, longitude, altitude, polygon, created_at FROM parcelles WHERE id=? LIMIT 1");
+            $stmt2->bind_param("i", $id);
+            $stmt2->execute();
+            $res = $stmt2->get_result();
+            $p = $res->fetch_assoc();
+            respond(200, $p);
+        } else {
+            respond(500, ["status" => "error", "message" => "Erreur update parcelle", "sql_error" => $stmt->error]);
+        }
     }
 
+    // DELETE
     if ($method === 'DELETE') {
         $id = isset($_GET['id']) ? (int)$_GET['id'] : (isset($data['id']) ? (int)$data['id'] : null);
-        if (!$id) respond(400, ["status"=>"error","message"=>"id requis"]);
+        if (!$id) respond(400, ["status" => "error", "message" => "id required"]);
         $stmt = stmt_prepare_or_respond($conn, "DELETE FROM parcelles WHERE id=?");
         $stmt->bind_param("i", $id);
-        if (!$stmt->execute()) respond(500, ["status"=>"error","message"=>"DB delete error","sql_error"=>$stmt->error]);
-        if ($stmt->affected_rows > 0) respond(200, ["status"=>"ok","message"=>"Parcelle supprimée"]);
-        respond(404, ["status"=>"error","message"=>"Parcelle non trouvée"]);
+        if ($stmt->execute()) respond(200, ["status" => "ok"]);
+        respond(500, ["status" => "error", "message" => "Erreur suppression", "sql_error" => $stmt->error]);
     }
 }
-// ================== ADDITION : endpoints parcelles avancés (AJOUTS, NE MODIFIENT PAS L'EXISTANT) ==================
+
+// ================== PARCELLES_FULL ==================
 if ($action === 'parcelles_full' && $method === 'GET') {
     $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
     $user_id = isset($_GET['user_id']) ? (int)$_GET['user_id'] : null;
@@ -446,8 +511,8 @@ if ($action === 'parcelles_full' && $method === 'GET') {
     respond(200, $list);
 }
 
+// ================== PARCELLES_COUNT ==================
 if ($action === 'parcelles_count' && $method === 'GET') {
-    // retourne la liste des agriculteurs avec le nombre total de parcelles (LEFT JOIN)
     $res = $conn->query(
         "SELECT users.id AS user_id, users.nom, users.prenom, COUNT(parcelles.id) AS total_parcelles
          FROM users
@@ -464,262 +529,13 @@ if ($action === 'parcelles_count' && $method === 'GET') {
     respond(200, $rows);
 }
 
-
-
-
-// ================== PARCELLES (admin & user) ==================
-if ($action === 'parcelles') {
-    if ($method === 'GET') {
-        $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
-        $user_id = isset($_GET['user_id']) ? (int)$_GET['user_id'] : null;
-
-        if ($id) {
-            $stmt = stmt_prepare_or_respond($conn, "SELECT id, user_id, nom, surface, localisation, latitude, longitude, altitude, polygon, created_at FROM parcelles WHERE id=? LIMIT 1");
-            $stmt->bind_param("i", $id);
-            $stmt->execute();
-            $res = $stmt->get_result();
-            $p = $res->fetch_assoc();
-            if ($p) respond(200, $p);
-            respond(404, ["status"=>"error","message"=>"Parcelle non trouvée"]);
-        }
-
-        if ($user_id) {
-            $stmt = stmt_prepare_or_respond($conn, "SELECT id, user_id, nom, surface, localisation, latitude, longitude, altitude, polygon, created_at FROM parcelles WHERE user_id=? ORDER BY created_at DESC");
-            $stmt->bind_param("i", $user_id);
-            $stmt->execute();
-            $res = $stmt->get_result();
-            $list = [];
-            while ($row = $res->fetch_assoc()) $list[] = $row;
-            respond(200, $list);
-        }
-
-        // all parcelles (optionnel)
-        $res = $conn->query("SELECT id, user_id, nom, surface, localisation, latitude, longitude, altitude, polygon, created_at FROM parcelles ORDER BY created_at DESC");
-        $list = [];
-        while ($row = $res->fetch_assoc()) $list[] = $row;
-        respond(200, $list);
-    }
-
-    if ($method === 'POST') {
-        $payload = $data;
-        $user_id = isset($payload['user_id']) ? (int)$payload['user_id'] : null;
-        $nom = isset($payload['nom']) ? clean((string)$payload['nom']) : '';
-        $surface = isset($payload['surface']) ? $payload['surface'] : null;
-        $localisation = isset($payload['localisation']) ? clean((string)$payload['localisation']) : null;
-        $latitude = isset($payload['latitude']) ? $payload['latitude'] : null;
-        $longitude = isset($payload['longitude']) ? $payload['longitude'] : null;
-        $altitude = isset($payload['altitude']) ? $payload['altitude'] : null;
-        $polygon = isset($payload['polygon']) ? (string)$payload['polygon'] : null;
-
-        if (!$user_id) {
-            respond(400, ["status" => "error", "message" => "user_id required"]);
-        }
-
-        $stmt = stmt_prepare_or_respond($conn, "INSERT INTO parcelles (user_id, nom, surface, localisation, latitude, longitude, altitude, polygon, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
-        // Bind everything as string except user_id (MySQL will convert numeric strings to numbers)
-        $s_surface = $surface !== null ? (string)$surface : null;
-        $s_lat = $latitude !== null ? (string)$latitude : null;
-        $s_lng = $longitude !== null ? (string)$longitude : null;
-        $s_alt = $altitude !== null ? (string)$altitude : null;
-        $stmt->bind_param("isssssss", $user_id, $nom, $s_surface, $localisation, $s_lat, $s_lng, $s_alt, $polygon);
-
-        if ($stmt->execute()) {
-            $id = $conn->insert_id;
-            // return the newly inserted parcelle
-            $stmt2 = stmt_prepare_or_respond($conn, "SELECT id, user_id, nom, surface, localisation, latitude, longitude, altitude, polygon, created_at FROM parcelles WHERE id=? LIMIT 1");
-            $stmt2->bind_param("i", $id);
-            $stmt2->execute();
-            $res = $stmt2->get_result();
-            $p = $res->fetch_assoc();
-            respond(201, $p);
-        } else {
-            respond(500, ["status" => "error", "message" => "Erreur insertion parcelle", "sql_error" => $stmt->error]);
-        }
-    }
-
-    if ($method === 'PUT') {
-        $payload = $data;
-        $id = isset($payload['id']) ? (int)$payload['id'] : null;
-        if (!$id) respond(400, ["status" => "error", "message" => "id required"]);
-
-        $nom = isset($payload['nom']) ? clean((string)$payload['nom']) : null;
-        $surface = array_key_exists('surface', $payload) ? $payload['surface'] : null;
-        $localisation = array_key_exists('localisation', $payload) ? clean((string)$payload['localisation']) : null;
-        $latitude = array_key_exists('latitude', $payload) ? $payload['latitude'] : null;
-        $longitude = array_key_exists('longitude', $payload) ? $payload['longitude'] : null;
-        $altitude = array_key_exists('altitude', $payload) ? $payload['altitude'] : null;
-        $polygon = array_key_exists('polygon', $payload) ? (string)$payload['polygon'] : null;
-
-        // Build update dynamically to allow partial updates
-        $fields = [];
-        $types = '';
-        $values = [];
-        if ($nom !== null) { $fields[] = 'nom=?'; $types .= 's'; $values[] = $nom; }
-        if ($surface !== null) { $fields[] = 'surface=?'; $types .= 's'; $values[] = (string)$surface; }
-        if ($localisation !== null) { $fields[] = 'localisation=?'; $types .= 's'; $values[] = $localisation; }
-        if ($latitude !== null) { $fields[] = 'latitude=?'; $types .= 's'; $values[] = (string)$latitude; }
-        if ($longitude !== null) { $fields[] = 'longitude=?'; $types .= 's'; $values[] = (string)$longitude; }
-        if ($altitude !== null) { $fields[] = 'altitude=?'; $types .= 's'; $values[] = (string)$altitude; }
-        if ($polygon !== null) { $fields[] = 'polygon=?'; $types .= 's'; $values[] = $polygon; }
-
-        if (empty($fields)) {
-            respond(400, ["status" => "error", "message" => "No fields to update"]);
-        }
-
-        $sql = "UPDATE parcelles SET " . implode(', ', $fields) . " WHERE id=?";
-        $stmt = stmt_prepare_or_respond($conn, $sql);
-        // bind params dynamically
-        $types .= 'i';
-        $values[] = $id;
-        // mysqli_bind_param requires variables by reference
-        $bind_names[] = $types;
-        for ($i=0; $i<count($values); $i++) {
-            $bind_name = 'bind' . $i;
-            $$bind_name = $values[$i];
-            $bind_names[] = &$$bind_name;
-        }
-        call_user_func_array([$stmt, 'bind_param'], $bind_names);
-
-        if ($stmt->execute()) {
-            // return updated row
-            $stmt2 = stmt_prepare_or_respond($conn, "SELECT id, user_id, nom, surface, localisation, latitude, longitude, altitude, polygon, created_at FROM parcelles WHERE id=? LIMIT 1");
-            $stmt2->bind_param("i", $id);
-            $stmt2->execute();
-            $res = $stmt2->get_result();
-            $p = $res->fetch_assoc();
-            respond(200, $p);
-        } else {
-            respond(500, ["status" => "error", "message" => "Erreur update parcelle", "sql_error" => $stmt->error]);
-        }
-    }
-
-    if ($method === 'DELETE') {
-        $id = isset($_GET['id']) ? (int)$_GET['id'] : (isset($data['id']) ? (int)$data['id'] : null);
-        if (!$id) respond(400, ["status" => "error", "message" => "id required"]);
-        $stmt = stmt_prepare_or_respond($conn, "DELETE FROM parcelles WHERE id=?");
-        $stmt->bind_param("i", $id);
-        if ($stmt->execute()) respond(200, ["status" => "ok"]);
-        respond(500, ["status" => "error", "message" => "Erreur suppression", "sql_error" => $stmt->error]);
-    }
-}
-
-
-// ================== PARCELLE_METEO DETAILS ==================
-$dbHost = "localhost";
-$dbUser = "root";
-$dbPass = "";
-$dbName = "climatrack_db";
-
-$openWeatherApiKey = getenv('OPENWEATHER_API_KEY') ?: 'YOUR_OPENWEATHER_API_KEY_HERE';
-if ($openWeatherApiKey === 'YOUR_OPENWEATHER_API_KEY_HERE') {
-    echo "[" . date('c') . "] WARNING: OPENWEATHER_API_KEY not set\n";
-    // you may exit(1) if you want to force configuration
-}
-
-$baseUrl = "https://api.openweathermap.org/data/2.5/weather";
-
-$conn = new mysqli($dbHost, $dbUser, $dbPass, $dbName);
-if ($conn->connect_error) {
-    echo "DB error: " . $conn->connect_error . PHP_EOL;
-    exit(1);
-}
-$conn->set_charset('utf8mb4');
-
-// get parcelles with coordinates
-$q = "SELECT id, latitude, longitude FROM parcelles WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND latitude <> '' AND longitude <> ''";
-$res = $conn->query($q);
-if (!$res) {
-    echo "DB query error: " . $conn->error . PHP_EOL;
-    exit(1);
-}
-
-$insertStmt = $conn->prepare("INSERT INTO meteo_data (parcelle_id, temperature, humidite, pluie, vent, date_releve, is_cold) VALUES (?, ?, ?, ?, ?, ?, ?)");
-if ($insertStmt === false) {
-    echo "Prepare insert error: " . $conn->error . PHP_EOL;
-    exit(1);
-}
-
-$checkStmt = $conn->prepare("SELECT id FROM meteo_data WHERE parcelle_id = ? AND date_releve = ? LIMIT 1");
-if ($checkStmt === false) {
-    echo "Prepare check error: " . $conn->error . PHP_EOL;
-    exit(1);
-}
-
-while ($row = $res->fetch_assoc()) {
-    $pid = (int)$row['id'];
-    $lat = $row['latitude'];
-    $lon = $row['longitude'];
-
-    // build request
-    $url = $baseUrl . "?lat=" . urlencode($lat) . "&lon=" . urlencode($lon) . "&units=metric&appid=" . $openWeatherApiKey;
-
-    // call API
-    $opts = [
-        "http" => [
-            "method" => "GET",
-            "timeout" => 10
-        ]
-    ];
-    $context = stream_context_create($opts);
-    $resp = @file_get_contents($url, false, $context);
-    if ($resp === false) {
-        echo "[" . date('c') . "] API request failed for parcelle {$pid} ({$lat},{$lon})\n";
-        continue;
-    }
-    $json = json_decode($resp, true);
-    if (!is_array($json)) {
-        echo "[" . date('c') . "] Invalid JSON for parcelle {$pid}\n";
-        continue;
-    }
-
-    $temp = isset($json['main']['temp']) ? floatval($json['main']['temp']) : null;
-    $hum = isset($json['main']['humidity']) ? floatval($json['main']['humidity']) : null;
-    $wind = isset($json['wind']['speed']) ? floatval($json['wind']['speed']) : 0.0;
-    // rain may be under rain['1h'] or rain['3h']
-    $rain = 0.0;
-    if (isset($json['rain']['1h'])) $rain = floatval($json['rain']['1h']);
-    elseif (isset($json['rain']['3h'])) $rain = floatval($json['rain']['3h']);
-
-    $is_cold = ($temp !== null && $temp < 7.0) ? 1 : 0;
-
-    // round date to hour start to avoid duplicate hourly inserts
-    $date_releve = date('Y-m-d H:00:00');
-
-    // check existing
-    $checkStmt->bind_param("is", $pid, $date_releve);
-    $checkStmt->execute();
-    $checkStmt->store_result();
-    if ($checkStmt->num_rows > 0) {
-        echo "[" . date('c') . "] Relevé already exists for parcelle {$pid} at {$date_releve}, skipping\n";
-        $checkStmt->free_result();
-        continue;
-    }
-    $checkStmt->free_result();
-
-    // insert
-    // types: i (parcelle_id), d temp, d humidity, d pluie, d vent, s date, i is_cold => "iddddsi"
-    $insertStmt->bind_param("iddddsi", $pid, $temp, $hum, $rain, $wind, $date_releve, $is_cold);
-    if (!$insertStmt->execute()) {
-        echo "[" . date('c') . "] Insert failed for parcelle {$pid}: " . $insertStmt->error . "\n";
-        continue;
-    }
-    echo "[" . date('c') . "] Inserted meteo for parcelle {$pid} (temp={$temp}, hum={$hum}, rain={$rain}, wind={$wind}, is_cold={$is_cold})\n";
-
-    // respect rate limits - tiny sleep to be polite
-    usleep(200000); // 200ms
-}
-
-$insertStmt->close();
-$checkStmt->close();
-$conn->close();
-// ----------------- METEO HISTORY / SUMMARY -----------------
+// ================== METEO HISTORY / SUMMARY ==================
 if ($action === 'meteo_history' && $method === 'GET') {
     $parcelle_id = isset($_GET['parcelle_id']) ? (int)$_GET['parcelle_id'] : null;
     if (!$parcelle_id) {
         respond(400, ["status" => "error", "message" => "parcelle_id required"]);
     }
 
-    // optional: limit number of records (default 48 = last 48 hours)
     $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 48;
 
     // fetch recent records
@@ -739,6 +555,114 @@ if ($action === 'meteo_history' && $method === 'GET') {
     if ($r2 = $res2->fetch_assoc()) $cold_count = (int)$r2['cold_hours'];
 
     respond(200, ["data" => $rows, "cold_hours_last_24h" => $cold_count]);
+}
+
+// ================== CRON / BACKGROUND METEO FETCH ==================
+// Le script d'origine pour récupérer la météo par parcelle (OpenWeather) doit
+// idéalement être exécuté en tâche cron via PHP CLI. Pour éviter d'exécuter
+// automatiquement lors d'une requête HTTP, on ne l'exécutera que si:
+// - PHP_SAPI === 'cli' (exécution en ligne de commande) OR
+// - on appelle explicitement ?action=run_meteo_cron (recommandé seulement en CLI)
+// Pour des raisons de sécurité, évitez d'appeler run_meteo_cron via HTTP dans prod.
+
+if ($action === 'run_meteo_cron' && $method === 'GET') {
+    // Sécurité minimale: n'autoriser que depuis localhost (ou vérifier un token)
+    $remote = $_SERVER['REMOTE_ADDR'] ?? '';
+    if ($remote !== '127.0.0.1' && $remote !== '::1') {
+        respond(403, ["status" => "error", "message" => "Forbidden"]);
+    }
+    // tomber au code suivant pour exécution (delegué)
+}
+
+// Si exécution depuis CLI et pas d'action API, on peut lancer la logique meteo
+if (PHP_SAPI === 'cli' && (empty($action) || $action === 'run_meteo_cron')) {
+    // Lecture clé OpenWeather depuis variable d'environnement
+    $openWeatherApiKey = getenv('OPENWEATHER_API_KEY') ?: 'YOUR_OPENWEATHER_API_KEY_HERE';
+    if ($openWeatherApiKey === 'YOUR_OPENWEATHER_API_KEY_HERE') {
+        echo "[" . date('c') . "] WARNING: OPENWEATHER_API_KEY not set\n";
+    }
+
+    $baseUrl = "https://api.openweathermap.org/data/2.5/weather";
+
+    // get parcelles with coordinates
+    $q = "SELECT id, latitude, longitude FROM parcelles WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND latitude <> '' AND longitude <> ''";
+    $res = $conn->query($q);
+    if (!$res) {
+        echo "DB query error: " . $conn->error . PHP_EOL;
+        exit(1);
+    }
+
+    $insertStmt = $conn->prepare("INSERT INTO meteo_data (parcelle_id, temperature, humidite, pluie, vent, date_releve, is_cold) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    if ($insertStmt === false) {
+        echo "Prepare insert error: " . $conn->error . PHP_EOL;
+        exit(1);
+    }
+
+    $checkStmt = $conn->prepare("SELECT id FROM meteo_data WHERE parcelle_id = ? AND date_releve = ? LIMIT 1");
+    if ($checkStmt === false) {
+        echo "Prepare check error: " . $conn->error . PHP_EOL;
+        exit(1);
+    }
+
+    while ($row = $res->fetch_assoc()) {
+        $pid = (int)$row['id'];
+        $lat = $row['latitude'];
+        $lon = $row['longitude'];
+
+        $url = $baseUrl . "?lat=" . urlencode($lat) . "&lon=" . urlencode($lon) . "&units=metric&appid=" . $openWeatherApiKey;
+
+        $opts = [
+            "http" => [
+                "method" => "GET",
+                "timeout" => 10
+            ]
+        ];
+        $context = stream_context_create($opts);
+        $resp = @file_get_contents($url, false, $context);
+        if ($resp === false) {
+            echo "[" . date('c') . "] API request failed for parcelle {$pid} ({$lat},{$lon})\n";
+            continue;
+        }
+        $json = json_decode($resp, true);
+        if (!is_array($json)) {
+            echo "[" . date('c') . "] Invalid JSON for parcelle {$pid}\n";
+            continue;
+        }
+
+        $temp = isset($json['main']['temp']) ? floatval($json['main']['temp']) : null;
+        $hum = isset($json['main']['humidity']) ? floatval($json['main']['humidity']) : null;
+        $wind = isset($json['wind']['speed']) ? floatval($json['wind']['speed']) : 0.0;
+        $rain = 0.0;
+        if (isset($json['rain']['1h'])) $rain = floatval($json['rain']['1h']);
+        elseif (isset($json['rain']['3h'])) $rain = floatval($json['rain']['3h']);
+
+        $is_cold = ($temp !== null && $temp < 7.0) ? 1 : 0;
+        $date_releve = date('Y-m-d H:00:00');
+
+        $checkStmt->bind_param("is", $pid, $date_releve);
+        $checkStmt->execute();
+        $checkStmt->store_result();
+        if ($checkStmt->num_rows > 0) {
+            echo "[" . date('c') . "] Relevé already exists for parcelle {$pid} at {$date_releve}, skipping\n";
+            $checkStmt->free_result();
+            continue;
+        }
+        $checkStmt->free_result();
+
+        $insertStmt->bind_param("iddddsi", $pid, $temp, $hum, $rain, $wind, $date_releve, $is_cold);
+        if (!$insertStmt->execute()) {
+            echo "[" . date('c') . "] Insert failed for parcelle {$pid}: " . $insertStmt->error . "\n";
+            continue;
+        }
+        echo "[" . date('c') . "] Inserted meteo for parcelle {$pid} (temp={$temp}, hum={$hum}, rain={$rain}, wind={$wind}, is_cold={$is_cold})\n";
+
+        usleep(200000); // 200ms
+    }
+
+    $insertStmt->close();
+    $checkStmt->close();
+    $conn->close();
+    exit(0);
 }
 
 // ================== DEFAULT ==================

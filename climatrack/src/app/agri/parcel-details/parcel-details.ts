@@ -128,9 +128,9 @@ export class ParcelDetails implements OnInit {
     });
   }
 
-  back() {
-    this.router.navigate(['/admin/agriculteurs', this.parcel?.user_id || '']);
-  }
+  /*back() {
+    this.router.navigate(['/agri/accueil', this.parcel?.user_id || '']);
+  }*/
 
   // NEW: pick location using browser geolocation (simpler than Google Maps JS integration)
   pickCurrentLocation() {

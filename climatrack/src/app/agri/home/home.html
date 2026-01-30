@@ -1,32 +1,72 @@
-<!-- fragment from existing home.html updated: added Altitude column and Voir button -->
+<!-- home.html - Liste des parcelles + carte + pick coords UI -->
+<div class="home-page">
   <h3>Liste des parcelles</h3>
-  <table border="1" width="100%" cellpadding="6" cellspacing="0">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Nom</th>
-        <th>Latitude</th>
-        <th>Longitude</th>
-        <th>Altitude</th>
-        <th>Type</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let p of parcels">
-        <td>{{ p.id }}</td>
-        <td>{{ p.nom || ('Parcelle ' + p.id) }}</td>
-        <td>{{ p.latitude ?? p.lat ?? '-' }}</td>
-        <td>{{ p.longitude ?? p.lng ?? '-' }}</td>
-        <td>{{ p.altitude ?? '-' }}</td>
-        <td>{{ p.polygon ? 'Polygon' : 'Point' }}</td>
-        <td>
-          <button mat-stroked-button color="accent" (click)="voirDetails(p.id)">Voir</button>
-          <button mat-stroked-button color="warn" (click)="deleteParcelle(p.id)" style="margin-left:8px;">Supprimer</button>
-        </td>
-      </tr>
-      <tr *ngIf="parcels.length === 0">
-        <td colspan="7">Aucune parcelle disponible.</td>
-      </tr>
-    </tbody>
-  </table>
+
+  <!-- Info / warning -->
+  <div *ngIf="mapError" class="map-error" style="margin-bottom:12px;">
+    <div>Erreur chargement Google Maps: {{ mapError }}</div>
+    <div class="map-error-hint">Si tu veux la carte complète et l'ElevationService : active la facturation dans Google Cloud et autorise la clé pour localhost.</div>
+  </div>
+
+  <!-- Carte (si apiLoaded true on aura un vrai google.maps, sinon zone reste visible si script partiellement chargé) -->
+  <div class="map-wrapper" style="height:360px; margin-bottom:12px;">
+    <div #mapElement id="map" style="width:100%;height:100%"></div>
+    <div *ngIf="!apiLoaded && !mapError" class="map-placeholder">Carte en attente de chargement...</div>
+  </div>
+
+  <!-- Instructions -->
+  <div style="margin-bottom:8px; color:#444; font-size:0.95rem;">
+    Astuce : clique sur un repère (ou un polygone) pour sélectionner la parcelle et remplir automatiquement Latitude / Longitude / Altitude. Tu peux aussi cliquer "Pick coords" dans le tableau.
+  </div>
+
+  <!-- Picker panel -->
+  <div *ngIf="selectedParcelId != null" style="margin-bottom:12px; padding:10px; border:1px solid #e0e0e0; border-radius:6px; background:#fff;">
+    <strong>Éditer coordonnées — Parcelle ID {{ selectedParcelId }}</strong>
+    <div style="display:flex; gap:16px; margin-top:8px; align-items:center;">
+      <div>
+        <div><strong>Latitude:</strong> {{ pickLat ?? '-' }}</div>
+        <div><strong>Longitude:</strong> {{ pickLng ?? '-' }}</div>
+        <div><strong>Altitude (m):</strong> {{ pickAlt ?? '-' }}</div>
+      </div>
+      <div style="margin-left:auto;">
+        <button mat-stroked-button color="primary" (click)="savePickedCoordinatesForParcel()" [disabled]="savingCoords || pickLat==null || pickLng==null">Enregistrer coordonnées</button>
+        <button mat-stroked-button (click)="cancelPick()" style="margin-left:8px;">Annuler</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="parcels-table-container">
+    <table class="parcels-table" border="1" width="100%" cellpadding="6" cellspacing="0">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nom</th>
+          <th>Latitude</th>
+          <th>Longitude</th>
+          <th>Altitude</th>
+          <th>Type</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let p of parcels" [class.selected-row]="p.id === selectedParcelId">
+          <td>{{ p.id }}</td>
+          <td>{{ p.nom || ('Parcelle ' + p.id) }}</td>
+          <td>{{ p.latitude ?? p.lat ?? '-' }}</td>
+          <td>{{ p.longitude ?? p.lng ?? '-' }}</td>
+          <td>{{ p.altitude ?? '-' }}</td>
+          <td>{{ p.polygon ? 'Polygon' : 'Point' }}</td>
+          <td>
+            <button mat-stroked-button color="accent" (click)="voirDetails(p.id)">Voir</button>
+            <button mat-stroked-button color="warn" (click)="deleteParcelle(p.id)" style="margin-left:8px;">Supprimer</button>
+            <button mat-stroked-button color="primary" (click)="startPickCoords(p.id)" style="margin-left:8px;">Pick coords</button>
+          </td>
+        </tr>
+        <tr *ngIf="parcels.length === 0">
+          <td colspan="7" class="empty-row">Aucune parcelle disponible.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
