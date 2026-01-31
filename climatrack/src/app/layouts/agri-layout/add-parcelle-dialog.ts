@@ -10,7 +10,13 @@ import { GoogleMapsLoaderService } from '../../core/services/google.maps.loader.
 import { ParcellesService } from '../../core/services/parcel.service';
 
 type LatLng = google.maps.LatLngLiteral;
-type ParcelleStored = { id: number; name: string; lat: number; lng: number; polygon?: string };
+type ParcelleStored = {
+  id: number;
+  name: string;
+  lat: number;
+  lng: number;
+  polygon?: string;
+};
 
 @Component({
   selector: 'add-parcelle-dialog',
@@ -27,12 +33,13 @@ type ParcelleStored = { id: number; name: string; lat: number; lng: number; poly
   templateUrl: './add-parcelle-dialog.html',
 })
 export class AddParcelleDialog implements OnInit {
-  center: LatLng = { lat: 36.8, lng: 10.18 }; // centre par défaut (Tunisie)
+
+  center: LatLng = { lat: 36.8, lng: 10.18 };
   zoom = 8;
   path: LatLng[] = [];
   name = '';
 
-  loaded = false; // true quand l'API google.maps est prête
+  loaded = false;
   isBrowser = false;
   isGettingLocation = false;
 
@@ -49,22 +56,19 @@ export class AddParcelleDialog implements OnInit {
   async ngOnInit(): Promise<void> {
     try {
       await this.gmapsLoader.load();
-
-      // Reporter la mise à true pour éviter ExpressionChangedAfterItHasBeenCheckedError
       Promise.resolve().then(() => {
         this.loaded = true;
         this.cd.detectChanges();
       });
     } catch (err) {
       console.error('Impossible de charger Google Maps API', err);
-      alert('Erreur: impossible de charger Google Maps. Vérifiez votre clé API et la configuration GCP.');
+      alert('Erreur Google Maps API');
     }
   }
 
   addPoint(event: google.maps.MapMouseEvent) {
-    const latLng = event.latLng;
-    if (!latLng) return;
-    this.path = [...this.path, latLng.toJSON()];
+    if (!event.latLng) return;
+    this.path = [...this.path, event.latLng.toJSON()];
   }
 
   removePoint(i: number) {
@@ -72,88 +76,17 @@ export class AddParcelleDialog implements OnInit {
   }
 
   private computeCentroid(path: LatLng[]): LatLng {
-    if (!path.length) return this.center;
     const sum = path.reduce(
-      (acc, p) => {
-        acc.lat += p.lat;
-        acc.lng += p.lng;
-        return acc;
-      },
+      (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
       { lat: 0, lng: 0 }
     );
     return { lat: sum.lat / path.length, lng: sum.lng / path.length };
   }
 
-  // Fonction pour obtenir la localisation automatique
-  async getCurrentLocation(): Promise<{ lat: number; lng: number; alt?: number } | null> {
-    if (!this.isBrowser || !('geolocation' in navigator)) {
-      console.warn('Geolocation non disponible');
-      return null;
-    }
-
-    this.isGettingLocation = true;
-    
-    return new Promise((resolve) => {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          let alt: number | null = pos.coords.altitude ?? null;
-
-          // Fallback à Open-Elevation si altitude manquante
-          if (alt == null) {
-            try {
-              const resp = await fetch(`https://api.open-elevation.com/api/v1/lookup?locations=${lat},${lng}`);
-              const json = await resp.json();
-              if (json?.results?.[0]?.elevation != null) {
-                alt = Number(json.results[0].elevation);
-              }
-            } catch (e) {
-              console.warn('OpenElevation failed', e);
-            }
-          }
-
-          this.isGettingLocation = false;
-          resolve({ lat, lng, alt: alt ?? undefined });
-        },
-        (err) => {
-          console.warn('Erreur géolocalisation', err);
-          this.isGettingLocation = false;
-          resolve(null);
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    });
-  }
-
-  // Bouton pour centrer la carte sur la position actuelle
-  async centerOnMyLocation() {
-    if (!this.isBrowser) return;
-
-    const location = await this.getCurrentLocation();
-    if (location) {
-      this.center = { lat: location.lat, lng: location.lng };
-      this.zoom = 15;
-    } else {
-      alert('Impossible d\'obtenir votre position. Vérifiez les permissions GPS.');
-    }
-  }
-
-  // Ajouter un point à la position actuelle
-  async addCurrentLocationPoint() {
-    if (!this.isBrowser) return;
-
-    const location = await this.getCurrentLocation();
-    if (location) {
-      this.path = [...this.path, { lat: location.lat, lng: location.lng }];
-    } else {
-      alert('Impossible d\'obtenir votre position. Vérifiez les permissions GPS.');
-    }
-  }
-
+  // ===================== SAVE =====================
   save() {
     if (this.path.length < 3) {
-      alert('Veuillez définir au moins 3 points pour la parcelle.');
+      alert('Au moins 3 points requis');
       return;
     }
 
@@ -166,69 +99,71 @@ export class AddParcelleDialog implements OnInit {
       polygon: JSON.stringify(this.path),
     };
 
-    // Si on est dans le navigateur et on a user_id, sauvegarder sur le backend
-    if (this.isBrowser) {
-      const uidStr = localStorage.getItem('user_id');
-      const user_id = uidStr ? Number(uidStr) : null;
+    const uidStr = this.isBrowser ? localStorage.getItem('user_id') : null;
+    const user_id = uidStr ? Number(uidStr) : null;
 
-      if (!user_id) {
-        // Fallback local si utilisateur inconnu
-        this.saveToLocal(newParcelleLocal);
-        this.dialogRef.close({ saved: true, parcelle: newParcelleLocal, persisted: false });
-        return;
-      }
+    // ===================== LOCAL ONLY =====================
+    if (!user_id) {
+      this.saveToLocal(newParcelleLocal);
+      this.parcellesSvc.notifyCreated(newParcelleLocal);
 
-      const payload: any = {
-        user_id: user_id,
-        nom: newParcelleLocal.name,
-        lat: newParcelleLocal.lat,
-        lng: newParcelleLocal.lng,
-        polygon: newParcelleLocal.polygon,
-      };
+      this.dialogRef.close({
+        saved: true,
+        parcelle: newParcelleLocal,
+        persisted: false
+      });
+      return;
+    }
 
-      this.parcellesSvc.create(payload).subscribe({
-        next: (created: any) => {
-          console.log('Parcelle créée:', created);
-          
-          // Vérifier si la parcelle a besoin de coordonnées automatiques
-          const hasLat = created.latitude != null || (created.lat != null && created.lng != null);
-          
-          // Si pas de coordonnées, essayer de les obtenir automatiquement
-          if (!hasLat && 'geolocation' in navigator && this.isBrowser) {
-            this.autoFillCoordinates(created);
-          } else {
-            // Fermer le dialogue avec succès
-            this.dialogRef.close({ 
-              saved: true, 
-              parcelle: created, 
-              persisted: true 
-            });
-          }
-        },
-        error: (err) => {
-          console.error('Erreur sauvegarde parcelle sur le serveur', err);
-          // Fallback: sauvegarder localement
-          this.saveToLocal(newParcelleLocal);
-          alert('La sauvegarde sur le serveur a échoué. La parcelle a été sauvegardée localement.');
-          this.dialogRef.close({ 
-            saved: true, 
-            parcelle: newParcelleLocal, 
-            persisted: false 
+    // ===================== SERVER =====================
+    const payload = {
+      user_id,
+      nom: newParcelleLocal.name,
+      lat: newParcelleLocal.lat,
+      lng: newParcelleLocal.lng,
+      polygon: newParcelleLocal.polygon,
+    };
+
+    this.parcellesSvc.create(payload).subscribe({
+      next: (created: any) => {
+        console.log('Parcelle créée:', created);
+
+        // notify immédiatement
+        this.parcellesSvc.notifyCreated(created);
+
+        const hasLat =
+          created.latitude != null ||
+          (created.lat != null && created.lng != null);
+
+        if (!hasLat && this.isBrowser && 'geolocation' in navigator) {
+          this.autoFillCoordinates(created);
+        } else {
+          this.dialogRef.close({
+            saved: true,
+            parcelle: created,
+            persisted: true
           });
         }
-      });
-    } else {
-      // SSR ou pas de navigateur: sauvegarder localement
-      this.saveToLocal(newParcelleLocal);
-      this.dialogRef.close({ 
-        saved: true, 
-        parcelle: newParcelleLocal, 
-        persisted: false 
-      });
-    }
+      },
+
+      error: (err) => {
+        console.error('Erreur serveur', err);
+
+        this.saveToLocal(newParcelleLocal);
+        this.parcellesSvc.notifyCreated(newParcelleLocal);
+
+        alert('Sauvegarde serveur échouée, sauvegarde locale.');
+
+        this.dialogRef.close({
+          saved: true,
+          parcelle: newParcelleLocal,
+          persisted: false
+        });
+      }
+    });
   }
 
-  // Fonction pour remplir automatiquement les coordonnées après création
+  // ===================== AUTO GEO =====================
   private autoFillCoordinates(createdParcelle: any) {
     if (!this.isBrowser || !('geolocation' in navigator)) return;
 
@@ -238,71 +173,65 @@ export class AddParcelleDialog implements OnInit {
         const lng = pos.coords.longitude;
         let alt: number | null = pos.coords.altitude ?? null;
 
-        // Fallback à Open-Elevation si altitude manquante
         if (alt == null) {
           try {
-            const resp = await fetch(`https://api.open-elevation.com/api/v1/lookup?locations=${lat},${lng}`);
+            const resp = await fetch(
+              `https://api.open-elevation.com/api/v1/lookup?locations=${lat},${lng}`
+            );
             const json = await resp.json();
-            if (json?.results?.[0]?.elevation != null) {
-              alt = Number(json.results[0].elevation);
-            }
-          } catch (e) {
-            console.warn('OpenElevation failed', e);
-          }
+            alt = json?.results?.[0]?.elevation ?? null;
+          } catch {}
         }
 
-        // Mettre à jour la parcelle côté backend
         const updatePayload: any = {
           id: createdParcelle.id,
           latitude: String(lat),
-          longitude: String(lng)
+          longitude: String(lng),
         };
         if (alt != null) updatePayload.altitude = String(alt);
 
         this.parcellesSvc.update(updatePayload).subscribe({
           next: (updated: any) => {
-            console.log('Coordonnées automatiques enregistrées', updated);
-            
-            // Fermer le dialogue avec la parcelle mise à jour
-            this.dialogRef.close({ 
-              saved: true, 
-              parcelle: updated, 
+            console.log('Auto coords saved', updated);
+
+            this.parcellesSvc.notifyCreated(updated);
+
+            this.dialogRef.close({
+              saved: true,
+              parcelle: updated,
               persisted: true,
-              autoCoords: true 
+              autoCoords: true
             });
           },
-          error: (err) => {
-            console.error('Erreur mise à jour coordonnées', err);
-            // Fermer quand même avec la parcelle originale
-            this.dialogRef.close({ 
-              saved: true, 
-              parcelle: createdParcelle, 
-              persisted: true 
+          error: () => {
+            this.dialogRef.close({
+              saved: true,
+              parcelle: createdParcelle,
+              persisted: true
             });
           }
         });
       },
-      (err) => {
-        console.warn('Erreur géolocalisation', err);
-        // Fermer avec la parcelle originale (sans coordonnées auto)
-        this.dialogRef.close({ 
-          saved: true, 
-          parcelle: createdParcelle, 
-          persisted: true 
+      () => {
+        this.dialogRef.close({
+          saved: true,
+          parcelle: createdParcelle,
+          persisted: true
         });
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }
 
+  // ===================== LOCAL STORAGE =====================
   private saveToLocal(parcelle: ParcelleStored) {
     try {
-      const existingJson = localStorage.getItem('parcelles');
-      const existing: ParcelleStored[] = existingJson ? JSON.parse(existingJson) : [];
-      existing.push(parcelle);
-      localStorage.setItem('parcelles', JSON.stringify(existing));
+      const json = localStorage.getItem('parcelles');
+      const list: ParcelleStored[] = json ? JSON.parse(json) : [];
+      list.push(parcelle);
+      localStorage.setItem('parcelles', JSON.stringify(list));
     } catch (e) {
-      console.error('Erreur sauvegarde parcelle localement', e);
+      console.error('Local save error', e);
     }
   }
 
