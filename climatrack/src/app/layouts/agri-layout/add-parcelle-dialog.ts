@@ -43,6 +43,13 @@ export class AddParcelleDialog implements OnInit {
   isBrowser = false;
   isGettingLocation = false;
 
+  // Display fields for Lat, Lng, Alt, Surface
+  latitude: number | null = null;
+  longitude: number | null = null;
+  altitude: number | null = null;
+  surface: number | null = null;
+  fetchingAltitude = false;
+
   constructor(
     private dialogRef: MatDialogRef<AddParcelleDialog>,
     private gmapsLoader: GoogleMapsLoaderService,
@@ -69,10 +76,12 @@ export class AddParcelleDialog implements OnInit {
   addPoint(event: google.maps.MapMouseEvent) {
     if (!event.latLng) return;
     this.path = [...this.path, event.latLng.toJSON()];
+    this.updateCentroidAndAltitude();
   }
 
   removePoint(i: number) {
     this.path = this.path.filter((_, idx) => idx !== i);
+    this.updateCentroidAndAltitude();
   }
 
   private computeCentroid(path: LatLng[]): LatLng {
@@ -81,6 +90,49 @@ export class AddParcelleDialog implements OnInit {
       { lat: 0, lng: 0 }
     );
     return { lat: sum.lat / path.length, lng: sum.lng / path.length };
+  }
+
+  private updateCentroidAndAltitude() {
+    if (this.path.length < 3) {
+      this.latitude = this.longitude = this.altitude = this.surface = null;
+      return;
+    }
+    const centroid = this.computeCentroid(this.path);
+    this.latitude = centroid.lat;
+    this.longitude = centroid.lng;
+    this.surface = this.computeSurface(this.path);
+    this.fetchAltitude(centroid.lat, centroid.lng);
+  }
+
+  private computeSurface(path: LatLng[]): number | null {
+    if (!this.loaded || !path || path.length < 3) return null;
+    try {
+      // Use Google Maps Geometry library to compute area
+      const area = (window as any).google.maps.geometry.spherical.computeArea(path);
+      return area; // in square meters
+    } catch (e) {
+      console.warn('Failed to compute surface area', e);
+      return null;
+    }
+  }
+
+  private async fetchAltitude(lat: number, lng: number) {
+    this.fetchingAltitude = true;
+    this.altitude = null;
+    // Use open-elevation API for altitude
+    try {
+      const resp = await fetch(`https://api.open-elevation.com/api/v1/lookup?locations=${lat},${lng}`);
+      if (resp.ok) {
+        const json = await resp.json();
+        if (json && json.results && json.results[0] && json.results[0].elevation != null) {
+          this.altitude = Number(json.results[0].elevation);
+        }
+      }
+    } catch (e) {
+      console.warn('open-elevation failed', e);
+    }
+    this.fetchingAltitude = false;
+    this.cd.detectChanges();
   }
 
   // ===================== SAVE =====================
@@ -116,13 +168,19 @@ export class AddParcelleDialog implements OnInit {
     }
 
     // ===================== SERVER =====================
-    const payload = {
+    const payload: any = {
       user_id,
       nom: newParcelleLocal.name,
-      lat: newParcelleLocal.lat,
-      lng: newParcelleLocal.lng,
+      latitude: newParcelleLocal.lat,
+      longitude: newParcelleLocal.lng,
       polygon: newParcelleLocal.polygon,
     };
+    if (this.altitude != null) {
+      payload.altitude = this.altitude;
+    }
+    if (this.surface != null) {
+      payload.surface = this.surface;
+    }
 
     this.parcellesSvc.create(payload).subscribe({
       next: (created: any) => {

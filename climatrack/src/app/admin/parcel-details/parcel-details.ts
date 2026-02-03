@@ -13,13 +13,13 @@ import { MatNativeDateModule, DateAdapter } from '@angular/material/core';
 import { FormsModule } from '@angular/forms';
 
 @Component({
-  selector: 'app-parcel-details',
+  selector: 'admin-parcel-details',
   standalone: true,
   imports: [CommonModule, RouterModule, HttpClientModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatDatepickerModule, MatNativeDateModule, FormsModule],
   templateUrl: './parcel-details.html',
   styleUrls: ['./parcel-details.scss'],
 })
-export class ParcelDetails implements OnInit {
+export class AdminParcelDetails implements OnInit {
   parcel: Parcelle | null = null;
   weather: CurrentWeather | null = null;
   loadingParcel = false;

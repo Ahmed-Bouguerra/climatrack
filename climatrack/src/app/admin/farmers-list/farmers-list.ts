@@ -72,4 +72,7 @@ export class FarmersList implements OnInit {
     // navigate to admin agriculteurs/:id/parcelles
     this.router.navigate(['/admin/agriculteurs', id, 'parcelles']);
   }
+
+
+  
 }

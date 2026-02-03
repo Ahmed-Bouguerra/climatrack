@@ -1,32 +1,29 @@
-<!-- fragment from existing home.html updated: added Altitude column and Voir button -->
   <h3>Liste des parcelles</h3>
   <table border="1" width="100%" cellpadding="6" cellspacing="0">
     <thead>
       <tr>
-        <th>ID</th>
         <th>Nom</th>
-        <th>Latitude</th>
-        <th>Longitude</th>
-        <th>Altitude</th>
-        <th>Type</th>
+        <th>Surface (m²)</th>
+        <th>Latitude (m)</th>
+        <th>Longitude (m)</th>
+        <th>Altitude (m)</th>
         <th>Actions</th>
       </tr>
     </thead>
     <tbody>
       <tr *ngFor="let p of parcels">
-        <td>{{ p.id }}</td>
         <td>{{ p.nom || ('Parcelle ' + p.id) }}</td>
+        <td>{{ p.surface ?? '-' }}</td>
         <td>{{ p.latitude ?? p.lat ?? '-' }}</td>
         <td>{{ p.longitude ?? p.lng ?? '-' }}</td>
         <td>{{ p.altitude ?? '-' }}</td>
-        <td>{{ p.polygon ? 'Polygon' : 'Point' }}</td>
         <td>
           <button mat-stroked-button color="accent" (click)="voirDetails(p.id)">Voir details</button>
           <button mat-stroked-button color="warn" (click)="deleteParcelle(p.id)" style="margin-left:8px;">Supprimer</button>
         </td>
       </tr>
       <tr *ngIf="parcels.length === 0">
-        <td colspan="7">Aucune parcelle disponible.</td>
+        <td colspan="8">Aucune parcelle disponible.</td>
       </tr>
     </tbody>
   </table>

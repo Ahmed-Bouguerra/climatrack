@@ -5,7 +5,11 @@
 // ------------------ CONFIG ------------------
 $allowed_origins = [
     'http://localhost:4200',
-    'http://127.0.0.1:4200'
+    'http://127.0.0.1:4200',
+    'http://localhost:4201',
+    'http://127.0.0.1:4201',
+    'http://localhost:4202',
+    'http://127.0.0.1:4202'
 ];
 
 // ------------------ HELPERS ------------------
@@ -555,6 +559,60 @@ if ($action === 'meteo_history' && $method === 'GET') {
     if ($r2 = $res2->fetch_assoc()) $cold_count = (int)$r2['cold_hours'];
 
     respond(200, ["data" => $rows, "cold_hours_last_24h" => $cold_count]);
+}
+
+// ================== PARCELLE METEO (for frontend) ==================
+if ($action === 'parcelle_meteo' && $method === 'GET') {
+    $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
+    if (!$id) {
+        respond(400, ["status" => "error", "message" => "id required"]);
+    }
+
+    $date = isset($_GET['date']) ? clean((string)$_GET['date']) : null;
+    $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 48;
+
+    if ($date) {
+        // Validate date format (YYYY-MM-DD)
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            respond(400, ["status" => "error", "message" => "Invalid date format. Use YYYY-MM-DD"]);
+        }
+
+        // fetch records for specific date
+        $stmt = stmt_prepare_or_respond($conn, "SELECT id, parcelle_id, temperature, humidite, pluie, vent, date_releve, is_cold FROM meteo_data WHERE parcelle_id = ? AND DATE(date_releve) = ? ORDER BY date_releve ASC");
+        $stmt->bind_param("is", $id, $date);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $rows = [];
+        while ($r = $res->fetch_assoc()) $rows[] = $r;
+
+        // compute number of hours with temp < 7 for the selected date
+        $stmt2 = stmt_prepare_or_respond($conn, "SELECT COUNT(*) AS cold_hours FROM meteo_data WHERE parcelle_id = ? AND is_cold = 1 AND DATE(date_releve) = ?");
+        $stmt2->bind_param("is", $id, $date);
+        $stmt2->execute();
+        $res2 = $stmt2->get_result();
+        $cold_count = 0;
+        if ($r2 = $res2->fetch_assoc()) $cold_count = (int)$r2['cold_hours'];
+
+        respond(200, ["data" => $rows, "nb_heures_temp_sous_7" => $cold_count]);
+    } else {
+        // fetch recent records (default behavior)
+        $stmt = stmt_prepare_or_respond($conn, "SELECT id, parcelle_id, temperature, humidite, pluie, vent, date_releve, is_cold FROM meteo_data WHERE parcelle_id = ? ORDER BY date_releve DESC LIMIT ?");
+        $stmt->bind_param("ii", $id, $limit);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $rows = [];
+        while ($r = $res->fetch_assoc()) $rows[] = $r;
+
+        // compute number of hours with temp < 7 in last 24h
+        $stmt2 = stmt_prepare_or_respond($conn, "SELECT COUNT(*) AS cold_hours FROM meteo_data WHERE parcelle_id = ? AND is_cold = 1 AND date_releve >= (NOW() - INTERVAL 24 HOUR)");
+        $stmt2->bind_param("i", $id);
+        $stmt2->execute();
+        $res2 = $stmt2->get_result();
+        $cold_count = 0;
+        if ($r2 = $res2->fetch_assoc()) $cold_count = (int)$r2['cold_hours'];
+
+        respond(200, ["data" => $rows, "nb_heures_temp_sous_7" => $cold_count]);
+    }
 }
 
 // ================== CRON / BACKGROUND METEO FETCH ==================

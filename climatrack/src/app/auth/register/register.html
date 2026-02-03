@@ -1,42 +1,43 @@
 <mat-card>
   <mat-card-title>Inscription</mat-card-title>
   <mat-card-content>
+
     <form (ngSubmit)="register()" class="form">
       <div class="grid2">
         <mat-form-field appearance="outline">
           <mat-label>Nom</mat-label>
-          <input matInput [(ngModel)]="nom" name="nom" />
+          <input matInput [(ngModel)]="nom" name="nom" autocomplete="family-name" />
         </mat-form-field>
 
         <mat-form-field appearance="outline">
           <mat-label>Prénom</mat-label>
-          <input matInput [(ngModel)]="prenom" name="prenom" />
+          <input matInput [(ngModel)]="prenom" name="prenom" autocomplete="given-name" />
         </mat-form-field>
       </div>
 
       <mat-form-field appearance="outline">
         <mat-label>Téléphone</mat-label>
-        <input matInput [(ngModel)]="telephone" name="telephone" />
+        <input matInput [(ngModel)]="telephone" name="telephone" autocomplete="tel" />
       </mat-form-field>
 
       <mat-form-field appearance="outline">
         <mat-label>Adresse</mat-label>
-        <input matInput [(ngModel)]="adresse" name="adresse" />
+        <input matInput [(ngModel)]="adresse" name="adresse" autocomplete="address-line1" />
       </mat-form-field>
 
       <mat-form-field appearance="outline">
         <mat-label>Email</mat-label>
-        <input matInput type="email" [(ngModel)]="email" name="email" />
+        <input matInput type="email" [(ngModel)]="email" name="email" autocomplete="email" />
       </mat-form-field>
 
       <mat-form-field appearance="outline">
         <mat-label>Mot de passe</mat-label>
-        <input matInput type="password" [(ngModel)]="password" name="password" />
+        <input matInput type="password" [(ngModel)]="password" name="password" autocomplete="new-password" />
       </mat-form-field>
 
       <mat-form-field appearance="outline">
         <mat-label>Nom de société (optionnel)</mat-label>
-        <input matInput [(ngModel)]="societe" name="societe" />
+        <input matInput [(ngModel)]="societe" name="societe" autocomplete="organization" />
       </mat-form-field>
 
       <button mat-raised-button color="primary" class="w100" type="submit">

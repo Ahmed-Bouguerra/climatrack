@@ -67,6 +67,17 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
         }
       }
     }
+
+    // Subscribe to new parcel creations
+    this.subs.add(this.parcellesSvc.created$.subscribe((newParcelle: any) => {
+      if (newParcelle && newParcelle.id) {
+        // Reload parcels to include the new one
+        const uidStr = localStorage.getItem('user_id');
+        if (uidStr) {
+          this.loadParcelles(Number(uidStr));
+        }
+      }
+    }));
   }
 
   ngAfterViewInit(): void {

@@ -6,11 +6,13 @@ import { AgriLayoutComponent } from './layouts/agri-layout/agri-layout';
 
 import { LoginComponent } from './auth/login/login';
 import { RegisterComponent } from './auth/register/register';
+import { AuthGuard } from './core/guards/auth.guard';
 
 // FarmersList is standalone — import it dynamically to avoid TS2305/TS2339 issues
 import { FarmerDetail } from './admin/farmer-detail/farmer-detail';
 import { FarmerParcels } from './admin/farmer-parcels/farmer-parcels';
 import { AdminProfile } from './admin/admin-profile/admin-profile';
+import { AdminParcelDetails } from './admin/parcel-details/parcel-details';
 
 import { Home } from './agri/home/home';
 import { Profile } from './agri/profile/profile';
@@ -32,6 +34,7 @@ export const routes: Routes = [
   {
     path: 'admin',
     component: AdminLayoutComponent,
+    canActivate: [AuthGuard],
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'agriculteurs' },
 
@@ -39,7 +42,8 @@ export const routes: Routes = [
       { path: 'agriculteurs', loadComponent: () => import('./admin/farmers-list/farmers-list').then((m: any) => m.FarmersList) },
 
       { path: 'agriculteurs/:id', component: FarmerDetail },
-      { path: 'agriculteurs/:id/parcelles', component: FarmerParcels },
+      { path: 'agriculteurs/:id/parcelles', loadComponent: () => import('./admin/farmer-parcels/farmer-parcels').then((m: any) => m.FarmerParcels) },
+      { path: 'parcelle/:id', loadComponent: () => import('./admin/parcel-details/parcel-details').then((m: any) => m.AdminParcelDetails) },
       { path: 'admin-profile', component: AdminProfile },
     ],
   },
@@ -47,6 +51,7 @@ export const routes: Routes = [
   {
     path: '',
     component: AgriLayoutComponent,
+    canActivate: [AuthGuard],
     children: [
       { path: 'accueil', component: Home },
       { path: 'profil', component: Profile },

@@ -25,10 +25,7 @@ export class LoginComponent {
   ) {}
 
   login() {
-    if (this.email.trim() === 'admin@climatrack.com' && this.password.trim() === '123456') {
-      this.router.navigate(['/admin']);
-      return;
-    }
+    
     this.auth.login(this.email, this.password).subscribe({
       next: (res: any) => {
         localStorage.setItem('token', res.token);

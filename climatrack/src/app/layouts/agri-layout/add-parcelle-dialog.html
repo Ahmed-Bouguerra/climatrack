@@ -35,6 +35,24 @@
   </div>
 </div>
 
+<div *ngIf="path.length >= 3" style="margin-top:12px; display:flex; gap:12px; flex-wrap:wrap;">
+  <mat-form-field appearance="outline" style="flex:1; min-width:150px;">
+    <mat-label>Latitude</mat-label>
+    <input matInput [value]="latitude?.toFixed(6)" readonly>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" style="flex:1; min-width:150px;">
+    <mat-label>Longitude</mat-label>
+    <input matInput [value]="longitude?.toFixed(6)" readonly>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" style="flex:1; min-width:150px;">
+    <mat-label>Altitude (m)</mat-label>
+    <input matInput [value]="altitude?.toFixed(2)" readonly>
+    <span matSuffix *ngIf="fetchingAltitude">...</span>
+  </mat-form-field>
+</div>
+
 <div *ngIf="path.length > 0" style="margin-top:12px;">
   <strong>Points (cliquez sur la croix pour supprimer):</strong>
   <ul>

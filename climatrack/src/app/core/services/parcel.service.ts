@@ -55,8 +55,11 @@ export class ParcellesService {
     return this.http.put(this.api + '?' + params.toString(), payload);
   }
 
-  getMeteoForParcelle(parcelleId: number) {
-    const params = new HttpParams().set('action', 'parcelle_meteo').set('id', String(parcelleId));
+  getMeteoForParcelle(parcelleId: number, date?: string) {
+    let params = new HttpParams().set('action', 'parcelle_meteo').set('id', String(parcelleId));
+    if (date) {
+      params = params.set('date', date);
+    }
     return this.http.get<any>(this.api, { params });
   }
 
