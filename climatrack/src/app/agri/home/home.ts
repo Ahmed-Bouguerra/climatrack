@@ -58,26 +58,28 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.loading = true;
     if (this.isBrowser) {
       const uidStr = localStorage.getItem('user_id');
       if (uidStr) {
         const uid = Number(uidStr);
         if (uid) {
           this.loadParcelles(uid);
+        } else {
+          console.log("if uid", this.loading)
+          this.loading = false;
         }
+      } else {
+        console.log("if uidStr", this.loading)
+        this.loading = false;
       }
+    } else {
+      console.log("if", this.loading)
+      this.loading = false;
     }
 
     // Subscribe to new parcel creations
-    this.subs.add(this.parcellesSvc.created$.subscribe((newParcelle: any) => {
-      if (newParcelle && newParcelle.id) {
-        // Reload parcels to include the new one
-        const uidStr = localStorage.getItem('user_id');
-        if (uidStr) {
-          this.loadParcelles(Number(uidStr));
-        }
-      }
-    }));
+    
   }
 
   ngAfterViewInit(): void {
@@ -146,6 +148,7 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
           }
         }
         this.loading = false;
+        console.log(this.loading)
         if (this.apiLoaded && this.map) this.renderParcelsOnMap();
       },
       error: (err: any) => {
@@ -154,6 +157,14 @@ export class Home implements OnInit, AfterViewInit, OnDestroy {
         this.loading = false;
       }
     });
+
+    // Timeout to prevent loading from staying true indefinitely
+    setTimeout(() => {
+      if (this.loading) {
+        this.loading = false;
+        console.warn('Loading timeout: API call did not complete, showing table anyway');
+      }
+    }, 10000);
   }
 
   voirDetails(id: number) {

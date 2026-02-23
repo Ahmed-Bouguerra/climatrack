@@ -8,7 +8,6 @@ import { LoginComponent } from './auth/login/login';
 import { RegisterComponent } from './auth/register/register';
 import { AuthGuard } from './core/guards/auth.guard';
 
-// FarmersList is standalone — import it dynamically to avoid TS2305/TS2339 issues
 import { FarmerDetail } from './admin/farmer-detail/farmer-detail';
 import { FarmerParcels } from './admin/farmer-parcels/farmer-parcels';
 import { AdminProfile } from './admin/admin-profile/admin-profile';
@@ -51,7 +50,6 @@ export const routes: Routes = [
   {
     path: '',
     component: AgriLayoutComponent,
-    canActivate: [AuthGuard],
     children: [
       { path: 'accueil', component: Home },
       { path: 'profil', component: Profile },

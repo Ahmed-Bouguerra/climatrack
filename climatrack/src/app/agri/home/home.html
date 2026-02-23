@@ -1,29 +1,37 @@
-  <h3>Liste des parcelles</h3>
-  <table border="1" width="100%" cellpadding="6" cellspacing="0">
-    <thead>
-      <tr>
-        <th>Nom</th>
-        <th>Surface (m²)</th>
-        <th>Latitude (m)</th>
-        <th>Longitude (m)</th>
-        <th>Altitude (m)</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let p of parcels">
-        <td>{{ p.nom || ('Parcelle ' + p.id) }}</td>
-        <td>{{ p.surface ?? '-' }}</td>
-        <td>{{ p.latitude ?? p.lat ?? '-' }}</td>
-        <td>{{ p.longitude ?? p.lng ?? '-' }}</td>
-        <td>{{ p.altitude ?? '-' }}</td>
-        <td>
-          <button mat-stroked-button color="accent" (click)="voirDetails(p.id)">Voir details</button>
-          <button mat-stroked-button color="warn" (click)="deleteParcelle(p.id)" style="margin-left:8px;">Supprimer</button>
-        </td>
-      </tr>
-      <tr *ngIf="parcels.length === 0">
-        <td colspan="8">Aucune parcelle disponible.</td>
-      </tr>
-    </tbody>
-  </table>
+  <div *ngIf="loading" class="loading">
+    <div class="loading-spinner"></div>
+    <span>Chargement des parcelles...</span>
+  </div>
+  <div *ngIf="!loading" class="home-page">
+    <h2 class="page-title">Liste des parcelles</h2>
+    <div class="parcels-table-container">
+      <table class="parcels-table">
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Surface (m²)</th>
+            <th>Latitude</th>
+            <th>Longitude</th>
+            <th>Altitude (m)</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of parcels">
+            <td data-label="Nom">{{ p.nom || ('Parcelle ' + p.id) }}</td>
+            <td data-label="Surface">{{ p.surface ?? '-' }}</td>
+            <td data-label="Latitude">{{ p.latitude ?? p.lat ?? '-' }}</td>
+            <td data-label="Longitude">{{ p.longitude ?? p.lng ?? '-' }}</td>
+            <td data-label="Altitude">{{ p.altitude ?? '-' }}</td>
+            <td data-label="Actions" class="actions-cell">
+              <button mat-stroked-button color="accent" (click)="voirDetails(p.id)" class="action-btn">Voir details</button>
+              <button mat-stroked-button color="warn" (click)="deleteParcelle(p.id)" class="action-btn delete-btn">Supprimer</button>
+            </td>
+          </tr>
+          <tr *ngIf="parcels.length === 0" class="empty-row">
+            <td colspan="6">Aucune parcelle disponible.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
