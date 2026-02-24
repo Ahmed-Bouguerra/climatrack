@@ -5,7 +5,7 @@
   margin: 24px auto;
   padding: 0 16px;
   font-family: Roboto, Arial, sans-serif;
-  color: var(--mat-sys-on-surface, #222);
+  color: var(--text-main);
 }
 
 .map-wrapper {
@@ -13,9 +13,9 @@
   height: 360px;
   border-radius: 8px;
   overflow: hidden;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(16,24,40,0.06);
-  border: 1px solid #e8e8e8;
+  background: var(--bg-card);
+  box-shadow: 0 6px 18px rgba(2,6,23,0.45);
+  border: 1px solid var(--border-color);
   position: relative;
 }
 
@@ -26,15 +26,15 @@
   align-items: center;
   justify-content: center;
   padding: 16px;
-  color: #a94442;
-  background: #f2dede;
-  border: 1px solid #ebcccc;
+  color: var(--danger);
+  background: rgba(220,38,38,0.06);
+  border: 1px solid rgba(220,38,38,0.18);
   border-radius: 6px;
 }
 .map-error .map-error-hint {
   margin-top: 8px;
   font-size: 0.9rem;
-  color: #555;
+  color: var(--text-muted);
 }
 
 /* Placeholder while loading map */
@@ -43,7 +43,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 /* Table container for horizontal scroll on small screens */
@@ -59,7 +59,7 @@
   width: 100%;
   border-collapse: collapse;
   min-width: 700px;
-  background: #fff;
+  background: transparent;
   font-size: 14px;
 }
 
@@ -68,15 +68,16 @@
 .parcels-table td {
   padding: 12px 10px;
   text-align: left;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color);
   vertical-align: middle;
+  color: var(--text-main);
 }
 
 /* Head */
 .parcels-table thead th {
-  background: linear-gradient(180deg,#fafafa,#f5f5f5);
-  font-weight: 600;
-  color: #333;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+  font-weight: 700;
+  color: var(--text-secondary);
   position: sticky;
   top: 0;
   z-index: 2;
@@ -84,12 +85,15 @@
 
 /* Row hover */
 .parcels-table tbody tr:hover {
-  background: #fbfbfb;
+  background: var(--bg-hover);
 }
 
 /* Zebra rows */
 .parcels-table tbody tr:nth-child(odd) {
-  background: #fff;
+  background: transparent;
+}
+.parcels-table tbody tr:nth-child(even) {
+  background: rgba(255,255,255,0.02);
 }
 
 /* Action button */
@@ -97,7 +101,32 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  padding: 0.45rem 0.75rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease, transform 80ms ease;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-main);
 }
+
+/* button variants */
+button.action-btn:not(.delete-btn) {
+  background: var(--primary-green);
+  color: var(--text-main);
+  border-color: transparent;
+}
+button.action-btn:not(.delete-btn):hover { background: var(--green-hover); }
+
+button.delete-btn {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid rgba(220,38,38,0.18);
+}
+button.delete-btn:hover { background: rgba(220,38,38,0.08); }
+
+.actions-cell { display:flex; gap:8px; align-items:center; }
 
 /* Empty row */
 .empty-row td {
@@ -121,10 +150,10 @@
   .parcels-table tbody tr {
     display: block;
     margin-bottom: 12px;
-    border: 1px solid #eee;
+    border: 1px solid var(--border-color);
     border-radius: 6px;
     padding: 10px;
-    background: #fff;
+    background: var(--bg-card);
   }
 
   .parcels-table tbody td {
@@ -138,10 +167,10 @@
   .parcels-table tbody td::before {
     content: attr(data-label);
     font-weight: 600;
-    color: #555;
+    color: var(--text-secondary);
     margin-right: 8px;
   }
 }
 .selected-row {
-  background: #f0f8ff;
+  background: rgba(74,222,128,0.08);
 }

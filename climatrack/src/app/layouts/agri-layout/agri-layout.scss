@@ -1,8 +1,8 @@
 /* Agri layout toolbar and container styles */
 
 mat-toolbar {
-  background: #2E7D32; /* green tone */
-  color: #fff;
+  background: var(--primary-green); /* use theme primary green */
+  color: var(--text-main);
   display: flex;
   align-items: center;
   padding: 0 16px;
@@ -24,8 +24,19 @@ mat-toolbar a[mat-button], mat-toolbar button {
   margin: 0 auto;
 }
 
+/* Logo styling */
+.app-logo {
+  display: block;
+  width: 100%;
+  max-width: 180px;
+  height: auto;
+  border-radius: 12px;
+  object-fit: contain;
+}
+
 /* small responsive adjustments */
 @media (max-width: 600px) {
   mat-toolbar { padding: 0 8px; }
   mat-toolbar a[mat-button], mat-toolbar button { font-size: 13px; margin-left: 6px; }
+  .app-logo { max-width: 120px; }
 }

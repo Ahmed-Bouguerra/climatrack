@@ -5,6 +5,7 @@
 // Learn more about theming and how to use it for your application's
 // custom components at https://material.angular.dev/guide/theming
 @use '@angular/material' as mat;
+@use 'styles/_components' as *;
 
 html {
   height: 100%;
@@ -73,3 +74,10 @@ body {
   height: 100%;
 }
 /* You can add global styles to this file, and also import other style files */
+
+/* Activate dark color-scheme and ensure our variables are applied */
+html, body {
+  color-scheme: dark;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+}

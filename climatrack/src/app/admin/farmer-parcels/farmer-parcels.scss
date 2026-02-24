@@ -1,0 +1,56 @@
+/* Dark themed styles for admin farmer parcels table */
+
+.container {
+  max-width: 1100px;
+  margin: 20px auto;
+  padding: 12px;
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+}
+
+.container h2 { margin: 0 0 12px 0; color: var(--text-main); }
+
+.loading { color: var(--text-secondary); }
+.error { color: var(--danger); background: rgba(220,38,38,0.06); padding: 8px; border-radius: 6px; border: 1px solid rgba(220,38,38,0.18); }
+.no-data { color: var(--text-muted); padding: 8px; }
+
+/* Material table overrides to match theme */
+table.mat-elevation-z8 {
+  width: 100%;
+  background: transparent;
+  border-collapse: collapse;
+}
+
+.mat-header-row { }
+.mat-row { }
+
+.mat-header-cell {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+  color: var(--text-secondary) !important;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.mat-cell {
+  color: var(--text-main) !important;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.mat-row:hover .mat-cell { background: var(--bg-hover); }
+
+/* Buttons inside table */
+button[mat-stroked-button] {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border-color: var(--border-color);
+  color: var(--text-main);
+  background: transparent;
+}
+button[mat-stroked-button].mat-accent { background: var(--primary-green); color: var(--text-main); border-color: transparent; }
+button[mat-stroked-button].mat-accent:hover { background: var(--green-hover); }
+
+/* Responsive adjustments */
+@media (max-width: 720px) {
+  .container { padding: 8px; }
+  .mat-cell, .mat-header-cell { padding: 8px 6px; }
+}
