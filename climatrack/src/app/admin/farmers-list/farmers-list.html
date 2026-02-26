@@ -42,13 +42,13 @@
     <ng-container matColumnDef="actions">
       <th mat-header-cell *matHeaderCellDef>Actions</th>
       <td mat-cell *matCellDef="let element">
-        <!-- Voir détails: navigation vers /admin/agriculteurs/:id -->
-        <button mat-icon-button [routerLink]="['/admin','agriculteurs', element.id]" title="Voir détails">
+        <!-- Voir détails: navigation via méthode -->
+        <button mat-icon-button (click)="viewFarmer(element.id)" title="Voir détails">
           <mat-icon>visibility</mat-icon>
         </button>
 
-        <!-- Voir parcelles: navigation vers /admin/agriculteurs/:id/parcelles -->
-        <button mat-icon-button [routerLink]="['/admin','agriculteurs', element.id, 'parcelles']" title="Voir parcelles">
+        <!-- Voir parcelles: navigation via méthode -->
+        <button mat-icon-button (click)="goToParcelles(element.id)" title="Voir parcelles">
           <mat-icon>landscape</mat-icon>
         </button>
 

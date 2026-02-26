@@ -5,8 +5,90 @@ el application bech tetkawen men :
 ynajem ya3ml creation d'un compte personnel bech yda5el el utilisateur (nom, prenom, num de telephone ,adresse, mail , password ,  esm el societe ta3 el agriculteur ken thama ) ba3d ya3ml login bel compte eli 3amlou bech yod5el le page d'accueil eli bech yl9a feha boutton bech yod5el menha lel profile mte3ou w ychouf les information ta3 el compte w fl page profile ynajem ya3mel modificatinon lel les informations mte3ou(nom, prenom, num de telephone ,adresse, mail , password ,  esm el societe ta3 el agriculteur ken thama ) w ynajem ya3mel supression lel compte mte3ou w fwha boutton de retour traj3ou le page d'accueil . fel page d'acceuil l'utilisateur bech yal9a tableau w fou9ou boutton tasma7lou bech yzid beha des parcelles lel tableau 3an tari9 anou tatla3lou window tothherlou feha el carte google map bech y7aded howa menha el parcelle eli bech yzidha lel tableau w w9odem kol parcelle yzidha fel tableau thama troix bouttons loula bech ya3mel menha modification lel parcelle mte3ou 3al carte google map wel thenya bech ya3ml menha suppression lel parcelle mel tabeau wl boutton el theltha ta3ti map mel google map feha el parcelle mgamra 7awlha w tala3lou tableau fih el (temperature wl routouba wel ri7 w el amtar w 9adech temps 9a3det el s5ana a9al mn 7 degree C )eli ykoun 9a3ed y9ayed fehom kol 12 heures w ya3mlelhom ajout fel tableau w ya3ti courbe feha el moyenne ta3 kol 7aja wynajem ya5tar itha kent pa jour ,semaine , mois , annee ou tous le temps(mel nhar eli 3mal fih el compte mte3ou 7atekch lel current day), w ta3tih zed taw9ou3at les 7 jours eli ba3d el current day
 
 
+bech nwathef fih : 
+1-google-map angular API :
+
+html:
+<google-map
+  height="500px"
+  width="100%"
+  [center]="center"
+  [zoom]="zoom"
+  mapId="YOUR_MAP_ID_HERE"
+></google-map>
 
 
+typescript:
+import { Component } from '@angular/core';
+
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.css']
+})
+export class AppComponent {
+  center: google.maps.LatLngLiteral = {lat: 40, lng: -20};
+  zoom = 4;
+}
+
+2- open weather amp :
+https://openweathermap.org/current
+Examples of API calls
+
+https://api.openweathermap.org/data/2.5/weather?lat=44.34&lon=10.99&appid={API key}
+
+JSON format API response example
+                          
+{
+   "coord": {
+      "lon": 7.367,
+      "lat": 45.133
+   },
+   "weather": [
+      {
+         "id": 501,
+         "main": "Rain",
+         "description": "moderate rain",
+         "icon": "10d"
+      }
+   ],
+   "base": "stations",
+   "main": {
+      "temp": 284.2,
+      "feels_like": 282.93,
+      "temp_min": 283.06,
+      "temp_max": 286.82,
+      "pressure": 1021,
+      "humidity": 60,
+      "sea_level": 1021,
+      "grnd_level": 910
+   },
+   "visibility": 10000,
+   "wind": {
+      "speed": 4.09,
+      "deg": 121,
+      "gust": 3.47
+   },
+   "rain": {
+      "1h": 2.73
+   },
+   "clouds": {
+      "all": 83
+   },
+   "dt": 1726660758,
+   "sys": {
+      "type": 1,
+      "id": 6736,
+      "country": "IT",
+      "sunrise": 1726636384,
+      "sunset": 1726680975
+   },
+   "timezone": 7200,
+   "id": 3165523,
+   "name": "Province of Turin",
+   "cod": 200
+}                    
+                        
 
 el programme bech yet5dam b :
 1-angular version :

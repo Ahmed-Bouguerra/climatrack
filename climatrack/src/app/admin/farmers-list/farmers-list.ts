@@ -68,6 +68,11 @@ export class FarmersList implements OnInit {
     }
   }
 
+  viewFarmer(id: number): void {
+    // navigate to admin agriculteurs/:id (detail page)
+    this.router.navigate(['/admin/agriculteurs', id]);
+  }
+
   goToParcelles(id: number): void {
     // navigate to admin agriculteurs/:id/parcelles
     this.router.navigate(['/admin/agriculteurs', id, 'parcelles']);

@@ -16,7 +16,6 @@
             color="primary"
             (click)="toggleEdit()"
           >
-            <mat-icon>edit</mat-icon>
             Modifier
           </button>
           <div *ngIf="isEditing" class="edit-actions">
@@ -26,7 +25,6 @@
               (click)="saveProfile()"
               [disabled]="profileForm.invalid || isSaving"
             >
-              <mat-icon>save</mat-icon>
               {{ isSaving ? 'Enregistrement...' : 'Enregistrer' }}
             </button>
             <button
@@ -34,7 +32,6 @@
               (click)="toggleEdit()"
               [disabled]="isSaving"
             >
-              <mat-icon>close</mat-icon>
               Annuler
             </button>
           </div>

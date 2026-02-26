@@ -1,15 +1,14 @@
-import { Component, OnInit, ChangeDetectorRef, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ChangeDetectorRef, Injector } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
-import { GoogleMapsModule } from '@angular/google-maps';
 import { MatDialogRef, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { FormsModule } from '@angular/forms';
-import { GoogleMapsLoaderService } from '../../core/services/google.maps.loader.service';
 import { ParcellesService } from '../../core/services/parcel.service';
+// Leaflet is loaded from CDN in index.html and referenced via global `L`
 
-type LatLng = google.maps.LatLngLiteral;
+interface LatLng { lat: number; lng: number; }
 type ParcelleStored = {
   id: number;
   name: string;
@@ -23,7 +22,6 @@ type ParcelleStored = {
   standalone: true,
   imports: [
     CommonModule,
-    GoogleMapsModule,
     FormsModule,
     MatFormFieldModule,
     MatInputModule,
@@ -32,7 +30,7 @@ type ParcelleStored = {
   ],
   templateUrl: './add-parcelle-dialog.html',
 })
-export class AddParcelleDialog implements OnInit {
+export class AddParcelleDialog implements OnInit, AfterViewInit {
 
   center: LatLng = { lat: 36.8, lng: 10.18 };
   zoom = 8;
@@ -50,45 +48,108 @@ export class AddParcelleDialog implements OnInit {
   surface: number | null = null;
   fetchingAltitude = false;
 
-  constructor(
-    private dialogRef: MatDialogRef<AddParcelleDialog>,
-    private gmapsLoader: GoogleMapsLoaderService,
-    private cd: ChangeDetectorRef,
-    private parcellesSvc: ParcellesService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
-    this.isBrowser = isPlatformBrowser(this.platformId);
-  }
+  // Leaflet runtime objects
+  private map: any = null;
+  private leafletMarkers: any[] = [];
+  private leafletPolygon: any = null;
 
-  async ngOnInit(): Promise<void> {
+  constructor(
+    private injector: Injector,
+    private cd: ChangeDetectorRef,
+    private parcellesSvc: ParcellesService
+  ) {
     try {
-      await this.gmapsLoader.load();
-      Promise.resolve().then(() => {
-        this.loaded = true;
-        this.cd.detectChanges();
-      });
-    } catch (err) {
-      console.error('Impossible de charger Google Maps API', err);
-      alert('Erreur Google Maps API');
+      // try to read PLATFORM_ID via injector if available; fallback to window check
+      const platformId = this.injector.get((<any>Object).PLATFORM_ID as any, undefined);
+      this.isBrowser = typeof window !== 'undefined' && platformId !== 'server';
+    } catch {
+      this.isBrowser = typeof window !== 'undefined';
     }
   }
 
-  addPoint(event: google.maps.MapMouseEvent) {
-    if (!event.latLng) return;
-    this.path = [...this.path, event.latLng.toJSON()];
+  async ngOnInit(): Promise<void> {
+    // For Leaflet we don't need the Google loader — simply mark loaded on browser
+    if (this.isBrowser) {
+      this.loaded = true;
+      this.cd.detectChanges();
+    }
+  }
+
+  ngAfterViewInit(): void {
+    if (!this.isBrowser) return;
+    const L = (window as any).L;
+    if (!L) {
+      console.error('Leaflet (L) not found on window');
+      return;
+    }
+    this.initLeafletMap(L);
+  }
+
+  private initLeafletMap(L: any) {
+    try {
+      this.map = L.map('map').setView([this.center.lat, this.center.lng], this.zoom);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(this.map);
+
+      this.map.on('click', (e: any) => {
+        const latlng = { lat: e.latlng.lat, lng: e.latlng.lng } as LatLng;
+        this.addPointFromLeaflet(latlng);
+      });
+
+      // restore any initial path markers (none initially)
+    } catch (err) {
+      console.error('Leaflet init failed', err);
+    }
+  }
+
+  private addPointFromLeaflet(latlng: LatLng) {
+    this.path = [...this.path, latlng];
+
+    // add marker
+    if (this.map) {
+      const L = (window as any).L;
+      const marker = L.marker([latlng.lat, latlng.lng]).addTo(this.map).bindTooltip(String(this.path.length), {permanent: true, direction: 'top'});
+      this.leafletMarkers.push(marker);
+
+      // update polygon
+      if (this.leafletPolygon) {
+        this.map.removeLayer(this.leafletPolygon);
+        this.leafletPolygon = null;
+      }
+      if (this.path.length > 1) {
+        const Lpoly = L.polygon(this.path.map(p => [p.lat, p.lng]), { color: '#ff0000', fillOpacity: 0.2 }).addTo(this.map);
+        this.leafletPolygon = Lpoly;
+      }
+    }
+
     this.updateCentroidAndAltitude();
   }
 
   removePoint(i: number) {
     this.path = this.path.filter((_, idx) => idx !== i);
+    // remove marker layer
+    const marker = this.leafletMarkers[i];
+    if (marker && this.map) {
+      this.map.removeLayer(marker);
+    }
+    this.leafletMarkers = this.leafletMarkers.filter((_, idx) => idx !== i);
+
+    // rebuild polygon
+    if (this.leafletPolygon && this.map) {
+      this.map.removeLayer(this.leafletPolygon);
+      this.leafletPolygon = null;
+    }
+    if (this.path.length > 1 && this.map) {
+      const L = (window as any).L;
+      this.leafletPolygon = L.polygon(this.path.map(p => [p.lat, p.lng]), { color: '#ff0000', fillOpacity: 0.2 }).addTo(this.map);
+    }
+
     this.updateCentroidAndAltitude();
   }
 
   private computeCentroid(path: LatLng[]): LatLng {
-    const sum = path.reduce(
-      (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
-      { lat: 0, lng: 0 }
-    );
+    const sum = path.reduce((acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }), { lat: 0, lng: 0 });
     return { lat: sum.lat / path.length, lng: sum.lng / path.length };
   }
 
@@ -105,13 +166,25 @@ export class AddParcelleDialog implements OnInit {
   }
 
   private computeSurface(path: LatLng[]): number | null {
-    if (!this.loaded || !path || path.length < 3) return null;
+    if (!path || path.length < 3) return null;
     try {
-      // Use Google Maps Geometry library to compute area
-      const area = (window as any).google.maps.geometry.spherical.computeArea(path);
-      return area; // in square meters
+      // approximate area by projecting to Web Mercator and using shoelace
+      const R = 6378137; // earth radius in meters
+      const pts = path.map(p => {
+        const latRad = p.lat * Math.PI / 180;
+        const lonRad = p.lng * Math.PI / 180;
+        const x = R * lonRad;
+        const y = R * Math.log(Math.tan(Math.PI/4 + latRad/2));
+        return { x, y };
+      });
+      let area = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const j = (i + 1) % pts.length;
+        area += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+      }
+      return Math.abs(area) / 2;
     } catch (e) {
-      console.warn('Failed to compute surface area', e);
+      console.warn('Failed to compute surface area (leaflet)', e);
       return null;
     }
   }
@@ -159,11 +232,10 @@ export class AddParcelleDialog implements OnInit {
       this.saveToLocal(newParcelleLocal);
       this.parcellesSvc.notifyCreated(newParcelleLocal);
 
-      this.dialogRef.close({
-        saved: true,
-        parcelle: newParcelleLocal,
-        persisted: false
-      });
+      const dialogRef = this.injector.get<any>(MatDialogRef as any, null);
+      if (dialogRef) {
+        (dialogRef as any).close({ saved: true, parcelle: newParcelleLocal, persisted: false });
+      }
       return;
     }
 
@@ -196,11 +268,8 @@ export class AddParcelleDialog implements OnInit {
         if (!hasLat && this.isBrowser && 'geolocation' in navigator) {
           this.autoFillCoordinates(created);
         } else {
-          this.dialogRef.close({
-            saved: true,
-            parcelle: created,
-            persisted: true
-          });
+          const dialogRef2 = this.injector.get<any>(MatDialogRef as any, null);
+          if (dialogRef2) (dialogRef2 as any).close({ saved: true, parcelle: created, persisted: true });
         }
       },
 
@@ -212,11 +281,8 @@ export class AddParcelleDialog implements OnInit {
 
         alert('Sauvegarde serveur échouée, sauvegarde locale.');
 
-        this.dialogRef.close({
-          saved: true,
-          parcelle: newParcelleLocal,
-          persisted: false
-        });
+        const dialogRef3 = this.injector.get<any>(MatDialogRef as any, null);
+        if (dialogRef3) (dialogRef3 as any).close({ saved: true, parcelle: newParcelleLocal, persisted: false });
       }
     });
   }
@@ -254,28 +320,18 @@ export class AddParcelleDialog implements OnInit {
 
             this.parcellesSvc.notifyCreated(updated);
 
-            this.dialogRef.close({
-              saved: true,
-              parcelle: updated,
-              persisted: true,
-              autoCoords: true
-            });
+            const dialogRef4 = this.injector.get<any>(MatDialogRef as any, null);
+            if (dialogRef4) (dialogRef4 as any).close({ saved: true, parcelle: updated, persisted: true, autoCoords: true });
           },
           error: () => {
-            this.dialogRef.close({
-              saved: true,
-              parcelle: createdParcelle,
-              persisted: true
-            });
+            const dialogRef5 = this.injector.get<any>(MatDialogRef as any, null);
+            if (dialogRef5) (dialogRef5 as any).close({ saved: true, parcelle: createdParcelle, persisted: true });
           }
         });
       },
       () => {
-        this.dialogRef.close({
-          saved: true,
-          parcelle: createdParcelle,
-          persisted: true
-        });
+        const dialogRef6 = this.injector.get<any>(MatDialogRef as any, null);
+        if (dialogRef6) (dialogRef6 as any).close({ saved: true, parcelle: createdParcelle, persisted: true });
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -294,6 +350,7 @@ export class AddParcelleDialog implements OnInit {
   }
 
   cancel() {
-    this.dialogRef.close({ saved: false });
+    const dialogRef7 = this.injector.get<any>(MatDialogRef as any, null);
+    if (dialogRef7) (dialogRef7 as any).close({ saved: false });
   }
 }

@@ -3,24 +3,8 @@
   Chargement de la carte Google Maps…
 </div>
 
-<div *ngIf="loaded" style="height:500px;">
-  <google-map
-    height="100%"
-    width="100%"
-    [center]="center"
-    [zoom]="zoom"
-    (mapClick)="addPoint($event)"
-  >
-    <!-- polygon preview -->
-    <map-polygon *ngIf="path.length > 1" [paths]="path" [options]="{fillColor: '#FF0000', strokeColor:'#FF0000', strokeOpacity:0.7, fillOpacity:0.2}"></map-polygon>
-
-    <!-- markers for each vertex with index label -->
-    <map-marker
-      *ngFor="let p of path; let i = index"
-      [position]="p"
-      [label]="(i + 1).toString()"
-    ></map-marker>
-  </google-map>
+<div *ngIf="loaded && isBrowser" style="height:500px;">
+  <div id="map" style="height:100%; width:100%;"></div>
 </div>
 
 <div style="margin-top:12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
